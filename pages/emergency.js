@@ -523,7 +523,11 @@ export default function EmergencyPage() {
     <>
       <Head>
         <title>Emergency Hospital Finder - HolyBed</title>
-        <script async src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places,geometry&v=weekly&callback=initMap`}></script>
+        <script 
+          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places,geometry&v=weekly&loading=async&callback=initMap`}
+          async
+          defer
+        ></script>
         <script dangerouslySetInnerHTML={{
           __html: `
             window.initMap = function() {

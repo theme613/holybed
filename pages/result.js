@@ -556,7 +556,7 @@ export default function Result() {
         <title>Analysis Results - Holy bed</title>
         <meta name="description" content="Your symptom analysis results" />
         <script
-          src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD-AGIwmIduMMKvK9xtfSyN55xUmqEBdEQ&libraries=places,marker,geometry&v=weekly&callback=initMap"
+          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places,marker,geometry&v=weekly&loading=async&callback=initMap`}
           async
           defer
         ></script>
