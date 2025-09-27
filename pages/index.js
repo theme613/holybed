@@ -13,11 +13,101 @@ export default function Home() {
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfContent, setPdfContent] = useState('');
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
-  const [hospitalStats] = useState({
+  const [hospitalStats, setHospitalStats] = useState({
     hospitalsOnline: 28,
     availableBeds: 156,
     doctorsOnDuty: 42
-  });  const allHospitals = [
+  });
+  const [hospitalData, setHospitalData] = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [nextUpdate, setNextUpdate] = useState(null);
+  const [isRealtime, setIsRealtime] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [dataChanges, setDataChanges] = useState([]);
+  const [previousStats, setPreviousStats] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Fetch real-time hospital data
+  useEffect(() => {
+    const fetchHospitalData = async () => {
+      try {
+        setIsRefreshing(true);
+        setDataLoading(true);
+        const response = await fetch('/api/realtime-hospital-data');
+        const result = await response.json();
+        
+        if (result.success) {
+          console.log('Real-time hospital data loaded:', result.data);
+          
+          const newStats = {
+            hospitalsOnline: result.data.stats.totalHospitals,
+            availableBeds: result.data.stats.availableBeds,
+            doctorsOnDuty: Math.floor(result.data.stats.totalHospitals * 2.5) // Estimate
+          };
+          
+          // Track changes for real-time proof
+          if (previousStats && isRealtime) {
+            const changes = [];
+            if (previousStats.availableBeds !== newStats.availableBeds) {
+              const diff = newStats.availableBeds - previousStats.availableBeds;
+              changes.push({
+                type: 'beds',
+                message: `Available beds ${diff > 0 ? 'increased' : 'decreased'} by ${Math.abs(diff)}`,
+                timestamp: new Date().toLocaleTimeString(),
+                change: diff
+              });
+            }
+            if (changes.length > 0) {
+              setDataChanges(prev => [...changes, ...prev].slice(0, 10)); // Keep last 10 changes
+            }
+          }
+          
+          setPreviousStats(newStats);
+          setHospitalStats(newStats);
+          
+          // Update hospital list
+          setHospitalData(result.data.hospitals);
+          setLastUpdated(result.data.lastUpdated);
+          setNextUpdate(result.data.nextUpdate);
+          setIsRealtime(result.realtime || false);
+        } else {
+          console.error('Failed to fetch hospital data:', result);
+        }
+      } catch (error) {
+        console.error('Error fetching hospital data:', error);
+      } finally {
+        setDataLoading(false);
+        setIsRefreshing(false);
+      }
+    };
+
+    fetchHospitalData();
+    
+    // Set up auto-refresh every 15 seconds for real-time updates
+    const refreshInterval = setInterval(fetchHospitalData, 15 * 1000);
+    
+    return () => clearInterval(refreshInterval);
+  }, []);
+
+  // Countdown timer to next update
+  useEffect(() => {
+    if (!nextUpdate || !isRealtime) return;
+    
+    const updateCountdown = () => {
+      const now = new Date().getTime();
+      const nextUpdateTime = new Date(nextUpdate).getTime();
+      const secondsLeft = Math.max(0, Math.floor((nextUpdateTime - now) / 1000));
+      setCountdown(secondsLeft);
+    };
+    
+    updateCountdown(); // Initial update
+    const countdownInterval = setInterval(updateCountdown, 1000);
+    
+    return () => clearInterval(countdownInterval);
+  }, [nextUpdate, isRealtime]);
+
+  const allHospitals = [
     {
       name: 'KL General Hospital',
       lat: 3.1390, lng: 101.6869,
@@ -67,23 +157,34 @@ export default function Home() {
     'Fever', 'Headache', 'Chest Pain', 'Shortness of Breath', 'Stomach Pain', 'Dizziness'
   ];
 
-  const recommendedHospitals = [
-    {
-      name: 'KL General Hospital',
-      status: '20 beds available â€¢ 5 min wait time â€¢ 15 doctors on duty',
-      color: 'green'
-    },
-    {
-      name: 'Subang Jaya Medical Center',
-      status: '5 beds left â€¢ 30 min wait time â€¢ 8 doctors on duty',
-      color: 'orange'
-    },
-    {
-      name: 'Gleneagles Kuala Lumpur',
-      status: '12 beds available â€¢ 15 min wait time â€¢ 10 specialists available',
-      color: 'green'
-    }
-  ];
+  // Use real hospital data or fallback to mock data
+  const recommendedHospitals = hospitalData.length > 0 
+    ? hospitalData.slice(0, 3).map(hospital => ({
+        name: hospital.name,
+        status: `${hospital.availableBeds} beds available • ${hospital.waitTime} wait time • ${hospital.state}`,
+        color: hospital.status === 'good' ? 'green' : hospital.status === 'medium' ? 'orange' : 'red',
+        occupancyRate: hospital.occupancyRate,
+        totalBeds: hospital.totalBeds
+      }))
+    : [
+        {
+          name: dataLoading ? 'Loading hospital data...' : 'KL General Hospital',
+          status: dataLoading ? 'Fetching real-time data from Malaysia Open Data' : '20 beds available • 5 min wait time • 15 doctors on duty',
+          color: 'green'
+        },
+        ...(dataLoading ? [] : [
+          {
+            name: 'Subang Jaya Medical Center',
+            status: '5 beds left • 30 min wait time • 8 doctors on duty',
+            color: 'orange'
+          },
+          {
+            name: 'Gleneagles Kuala Lumpur',
+            status: '12 beds available • 15 min wait time • 10 specialists available',
+            color: 'green'
+          }
+        ])
+      ];
 
   const commonSymptoms = [
     {
@@ -339,27 +440,6 @@ export default function Home() {
                   <li><a href="#">Symptoms</a></li>
                   <li><a href="#">Emergency</a></li>
                   <li><a href="#">Health Tips</a></li>
-                  <li>
-                    <button 
-                      onClick={() => router.push('/pdf-analysis')}
-                      style={{
-                        background: 'none',
-                        border: '1px solid #28a745',
-                        color: '#28a745',
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        marginRight: '8px'
-                      }}
-                    >
-                      <i className="fas fa-file-medical"></i>
-                      PDF Analysis
-                    </button>
-                  </li>
                   <li>
                     <button 
                       onClick={() => router.push('/result')}
@@ -802,42 +882,240 @@ export default function Home() {
           <div className="main-content">
             {/* Left Column */}
             <div className="left-column">
+              {/* Real-time Data Status */}
+              {!dataLoading && isRealtime && lastUpdated && (
+                <div style={{
+                  background: '#f0f9ff',
+                  border: '1px solid #0ea5e9',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '20px',
+                  fontSize: '12px',
+                  color: '#0369a1'
+                }}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px'}}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      backgroundColor: isRefreshing ? '#f59e0b' : '#22c55e',
+                      borderRadius: '50%',
+                      animation: isRefreshing ? 'pulse 0.5s infinite' : 'pulse 2s infinite'
+                    }}></div>
+                    <strong>Real-Time Hospital Data Active</strong>
+                    {isRefreshing && (
+                      <span style={{
+                        fontSize: '10px',
+                        color: '#f59e0b',
+                        fontWeight: 'bold',
+                        marginLeft: '8px'
+                      }}>
+                        🔄 Refreshing...
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px'}}>
+                    <div>
+                      <div>Last Updated: {new Date(lastUpdated).toLocaleTimeString()}</div>
+                      <div>Auto-refresh: Every 15 seconds</div>
+                    </div>
+                    <div style={{textAlign: 'right'}}>
+                      {countdown > 0 ? (
+                        <div>
+                          <div style={{
+                            background: '#22c55e',
+                            color: 'white',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            marginBottom: '4px'
+                          }}>
+                            Next update in: {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
+                          </div>
+                          <button
+                            onClick={() => {
+                              setDataLoading(true);
+                              fetch('/api/realtime-hospital-data?force=true')
+                                .then(res => res.json())
+                                .then(result => {
+                                  if (result.success) {
+                                    const newStats = {
+                                      hospitalsOnline: result.data.stats.totalHospitals,
+                                      availableBeds: result.data.stats.availableBeds,
+                                      doctorsOnDuty: Math.floor(result.data.stats.totalHospitals * 2.5)
+                                    };
+                                    
+                                    if (previousStats) {
+                                      const changes = [];
+                                      if (previousStats.availableBeds !== newStats.availableBeds) {
+                                        const diff = newStats.availableBeds - previousStats.availableBeds;
+                                        changes.push({
+                                          type: 'manual',
+                                          message: `Manual refresh: Available beds ${diff > 0 ? 'increased' : 'decreased'} by ${Math.abs(diff)}`,
+                                          timestamp: new Date().toLocaleTimeString(),
+                                          change: diff
+                                        });
+                                      }
+                                      if (changes.length > 0) {
+                                        setDataChanges(prev => [...changes, ...prev].slice(0, 10));
+                                      }
+                                    }
+                                    
+                                    setPreviousStats(newStats);
+                                    setHospitalStats(newStats);
+                                    setHospitalData(result.data.hospitals);
+                                    setLastUpdated(result.data.lastUpdated);
+                                    setNextUpdate(result.data.nextUpdate);
+                                  }
+                                })
+                                .finally(() => setDataLoading(false));
+                            }}
+                            style={{
+                              background: '#3b82f6',
+                              color: 'white',
+                              border: 'none',
+                              padding: '2px 6px',
+                              borderRadius: '3px',
+                              fontSize: '9px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            🔄 Refresh Now
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{color: '#f59e0b', fontWeight: 'bold'}}>Updating now...</div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Data Changes Log */}
+                  {dataChanges.length > 0 && (
+                    <div style={{
+                      borderTop: '1px solid #bae6fd',
+                      paddingTop: '8px',
+                      maxHeight: '100px',
+                      overflowY: 'auto'
+                    }}>
+                      <div style={{fontWeight: 'bold', marginBottom: '4px'}}>Recent Changes:</div>
+                      {dataChanges.slice(0, 3).map((change, index) => (
+                        <div key={index} style={{
+                          fontSize: '10px',
+                          padding: '2px 0',
+                          color: change.change > 0 ? '#059669' : '#dc2626'
+                        }}>
+                          <span style={{color: '#6b7280'}}>{change.timestamp}</span> - {change.message}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Stats Overview */}
               <div className="stats-grid">
                 <div className="stat-card">
-                  <h3>{hospitalStats.hospitalsOnline}</h3>
+                  <h3>{dataLoading ? '...' : hospitalStats.hospitalsOnline}</h3>
                   <p>Hospitals Online</p>
+                  {!dataLoading && (
+                    <small style={{color: isRealtime ? '#22c55e' : '#666', fontSize: '10px'}}>
+                      {isRealtime ? '🟢 LIVE' : 'Gov Data 2022'}
+                    </small>
+                  )}
                 </div>
                 <div className="stat-card">
-                  <h3>{hospitalStats.availableBeds}</h3>
+                  <h3>{dataLoading ? '...' : hospitalStats.availableBeds}</h3>
                   <p>Available Beds</p>
+                  {!dataLoading && (
+                    <small style={{color: isRealtime ? '#22c55e' : '#666', fontSize: '10px'}}>
+                      {isRealtime ? '🟢 REAL-TIME' : 'Estimated'}
+                    </small>
+                  )}
                 </div>
                 <div className="stat-card">
-                  <h3>{hospitalStats.doctorsOnDuty}</h3>
+                  <h3>{dataLoading ? '...' : hospitalStats.doctorsOnDuty}</h3>
                   <p>Doctors On Duty</p>
+                  {!dataLoading && <small style={{color: '#666', fontSize: '10px'}}>Estimated</small>}
                 </div>
               </div>
               
               {/* Recommended Hospitals */}
               <div className="section-header">
                 <h2 id="recommendation-title">Recommended Hospitals</h2>
-                <a href="#" className="view-all">View All Hospitals</a>
+                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                  {!dataLoading && (
+                    <small style={{
+                      background: isRealtime ? '#dcfce7' : '#fff3cd',
+                      color: isRealtime ? '#166534' : '#856404',
+                      padding: '2px 6px',
+                      borderRadius: '10px',
+                      fontSize: '10px',
+                      fontWeight: '600'
+                    }}>
+                      {isRealtime ? '🟢 LIVE DATA (15sec updates)' : '🇲🇾 BASED ON GOV DATA (SIMULATED)'}
+                    </small>
+                  )}
+                  <a href="#" className="view-all">View All Hospitals</a>
+                </div>
               </div>
               
-              {recommendedHospitals.map((hospital, index) => (
-                <div key={index} className={`status-item ${hospital.color === 'orange' ? 'medium' : ''}`}>
-                  <div className={`status-icon ${hospital.color}`}>
-                    <i className="fas fa-hospital"></i>
-                  </div>
-                  <div className="status-info">
-                    <h3>{hospital.name}</h3>
-                    <p>{hospital.status}</p>
-                    <div className="progress-bar">
-                      <div className={`progress-fill ${hospital.color}`}></div>
+              {recommendedHospitals.map((hospital, index) => {
+                const hasRecentUpdate = hospital.lastUpdated && 
+                  new Date() - new Date(hospital.lastUpdated) < 5 * 60 * 1000; // Within 5 minutes
+                
+                return (
+                  <div key={hospital.id || index} className={`status-item ${hospital.color === 'orange' ? 'medium' : ''}`}
+                       style={{position: 'relative'}}>
+                    {/* Real-time update indicator */}
+                    {hasRecentUpdate && isRealtime && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        width: '6px',
+                        height: '6px',
+                        backgroundColor: '#22c55e',
+                        borderRadius: '50%',
+                        animation: 'pulse 2s infinite'
+                      }}></div>
+                    )}
+                    
+                    <div className={`status-icon ${hospital.color}`}>
+                      <i className="fas fa-hospital"></i>
+                    </div>
+                    <div className="status-info">
+                      <h3>
+                        {hospital.name}
+                        {isRealtime && (
+                          <span style={{
+                            fontSize: '10px',
+                            color: '#22c55e',
+                            marginLeft: '6px',
+                            fontWeight: 'normal'
+                          }}>
+                            🟢 LIVE
+                          </span>
+                        )}
+                      </h3>
+                      <p>{hospital.status}</p>
+                      <div className="progress-bar">
+                        <div className={`progress-fill ${hospital.color}`}></div>
+                      </div>
+                      {hospital.lastUpdated && isRealtime && (
+                        <small style={{
+                          fontSize: '9px',
+                          color: '#6b7280',
+                          display: 'block',
+                          marginTop: '4px'
+                        }}>
+                          Updated: {new Date(hospital.lastUpdated).toLocaleTimeString()}
+                        </small>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               
               {/* Hospital Map */}
               <div className="card">
