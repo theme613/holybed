@@ -484,7 +484,7 @@ export default function Result() {
     return (
       <>
         <Head>
-          <title>No Results - Symptom Finder</title>
+          <title>No Results - Holy bed</title>
         </Head>
         <div style={{padding: '40px', textAlign: 'center'}}>
           <h2>No Analysis Results Found</h2>
@@ -508,7 +508,7 @@ export default function Result() {
   return (
     <>
       <Head>
-        <title>Analysis Results - Symptom Finder</title>
+        <title>Analysis Results - Holy bed</title>
         <meta name="description" content="Your symptom analysis results" />
         <script
           src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD-AGIwmIduMMKvK9xtfSyN55xUmqEBdEQ&libraries=places,marker,geometry&v=weekly&callback=initMap"
@@ -540,7 +540,7 @@ export default function Result() {
               <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
                 <i className="fas fa-hospital" style={{fontSize: '1.8rem', color: '#007bff'}}></i>
                 <h1 style={{fontSize: '1.5rem', fontWeight: '600', margin: 0}}>
-                  Symptom <span style={{color: '#007bff'}}>Finder</span>
+                  Holy <span style={{color: '#007bff'}}>bed</span>
                 </h1>
               </div>
               <button onClick={goBack} style={{

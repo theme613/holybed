@@ -224,12 +224,12 @@ export default function Home() {
   const emergencyContacts = [
     {
       service: 'Ambulance',
-      number: '999 â€¢ 991 â€¢ 994',
+      number: '999 or 991',
       color: 'red'
     },
     {
-      service: 'Poison Control',
-      number: '1-800-88-8099',
+      service: 'Mental health',
+      number: '03-76272929',
       color: 'orange'
     }
   ];
@@ -1424,7 +1424,7 @@ export default function Home() {
                 {emergencyContacts.map((contact, index) => (
                   <div key={index} className="status-item">
                     <div className={`status-icon ${contact.color}`}>
-                      <i className={contact.service === 'Ambulance' ? 'fas fa-ambulance' : 'fas fa-phone'}></i>
+                      <i className={contact.service === 'Ambulance' ? 'fas fa-ambulance' : 'fas fa-brain'}></i>
                     </div>
                     <div className="status-info">
                       <h3>{contact.service}</h3>
