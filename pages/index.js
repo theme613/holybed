@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 
 export default function Home() {
   const [symptoms, setSymptoms] = useState('');
@@ -9,12 +10,59 @@ export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [pdfFile, setPdfFile] = useState(null);
-  const [pdfContent, setPdfContent] = useState('');
+  const [pdfContent, setPdfContent] = useState('');  const [userLocation, setUserLocation] = useState(null);
+  const [nearbyHospitals, setNearbyHospitals] = useState([]);
+  const [locationError, setLocationError] = useState(null);
+  const router = useRouter();
   const [hospitalStats] = useState({
     hospitalsOnline: 28,
     availableBeds: 156,
     doctorsOnDuty: 42
-  });
+  });  const allHospitals = [
+    {
+      name: 'KL General Hospital',
+      lat: 3.1390, lng: 101.6869,
+      availableBeds: 25, totalBeds: 50, waitTime: 5,
+      departments: ['Emergency', 'Cardiology', 'Surgery'],
+      status: 'Available', busyLevel: 'Low'
+    },
+    {
+      name: 'Subang Jaya Medical Center',
+      lat: 3.0738, lng: 101.5810,
+      availableBeds: 8, totalBeds: 40, waitTime: 25,
+      departments: ['Emergency', 'Orthopedics', 'Pediatrics'],
+      status: 'Busy', busyLevel: 'High'
+    },
+    {
+      name: 'Gleneagles Kuala Lumpur',
+      lat: 3.1478, lng: 101.7017,
+      availableBeds: 18, totalBeds: 35, waitTime: 12,
+      departments: ['Emergency', 'Cardiology', 'Neurology'],
+      status: 'Available', busyLevel: 'Medium'
+    },
+    {
+      name: 'Pantai Hospital KL',
+      lat: 3.1319, lng: 101.6841,
+      availableBeds: 22, totalBeds: 45, waitTime: 8,
+      departments: ['Emergency', 'Surgery', 'ICU'],
+      status: 'Available', busyLevel: 'Low'
+    },
+    {
+      name: 'Prince Court Medical Centre',
+      lat: 3.1390, lng: 101.6869,
+      availableBeds: 15, totalBeds: 30, waitTime: 15,
+      departments: ['Emergency', 'Specialist Care'],
+      status: 'Available', busyLevel: 'Medium'
+    },
+    {
+      name: 'Tung Shin Hospital',
+      lat: 3.1478, lng: 101.6953,
+      availableBeds: 12, totalBeds: 25, waitTime: 18,
+      departments: ['Emergency', 'Traditional Medicine'],
+      status: 'Moderate', busyLevel: 'Medium'
+    }
+  ];
+
 
   const symptomTags = [
     'Fever', 'Headache', 'Chest Pain', 'Shortness of Breath', 'Stomach Pain', 'Dizziness'
@@ -23,17 +71,17 @@ export default function Home() {
   const recommendedHospitals = [
     {
       name: 'KL General Hospital',
-      status: '20 beds available • 5 min wait time • 15 doctors on duty',
+      status: '20 beds available â€¢ 5 min wait time â€¢ 15 doctors on duty',
       color: 'green'
     },
     {
       name: 'Subang Jaya Medical Center',
-      status: '5 beds left • 30 min wait time • 8 doctors on duty',
+      status: '5 beds left â€¢ 30 min wait time â€¢ 8 doctors on duty',
       color: 'orange'
     },
     {
       name: 'Gleneagles Kuala Lumpur',
-      status: '12 beds available • 15 min wait time • 10 specialists available',
+      status: '12 beds available â€¢ 15 min wait time â€¢ 10 specialists available',
       color: 'green'
     }
   ];
@@ -59,7 +107,7 @@ export default function Home() {
   const emergencyContacts = [
     {
       service: 'Ambulance',
-      number: '999 • 991 • 994',
+      number: '999 â€¢ 991 â€¢ 994',
       color: 'red'
     },
     {
@@ -73,7 +121,75 @@ export default function Home() {
     { name: 'Emergency Assistance', icon: 'fas fa-ambulance' },
     { name: 'Book Appointment', icon: 'fas fa-calendar-check' },
     { name: 'Get Directions', icon: 'fas fa-directions' }
-  ];
+  ];  // Calculate distance between two coordinates (Haversine formula)
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // Get user's current location
+  const getUserLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation not supported');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const location = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        setUserLocation(location);
+        findNearbyHospitals(location);
+      },
+      (error) => {
+        setLocationError('Location access denied. Using default KL area.');
+        // Default to KL city center if location denied
+        const defaultLocation = { lat: 3.1390, lng: 101.6869 };
+        setUserLocation(defaultLocation);
+        findNearbyHospitals(defaultLocation);
+      }
+    );
+  };
+
+  // Sort hospitals by distance and availability
+  const findNearbyHospitals = (userLoc) => {
+    const hospitalsWithDistance = allHospitals.map(hospital => {
+      const distance = calculateDistance(
+        userLoc.lat, userLoc.lng,
+        hospital.lat, hospital.lng
+      );
+      
+      // Calculate priority score (lower is better)
+      // Distance weight: 40%, Availability weight: 35%, Wait time weight: 25%
+      const availabilityRatio = hospital.availableBeds / hospital.totalBeds;
+      const busyScore = hospital.busyLevel === 'Low' ? 1 : hospital.busyLevel === 'Medium' ? 2 : 3;
+      
+      const priorityScore = (distance * 0.4) + 
+                           ((1 - availabilityRatio) * 10 * 0.35) + 
+                           (hospital.waitTime * 0.25) +
+                           (busyScore * 2);
+
+      return {
+        ...hospital,
+        distance: distance.toFixed(1),
+        priorityScore,
+        availabilityRatio: (availabilityRatio * 100).toFixed(0)
+      };
+    });
+
+    // Sort by priority score (closest + most available first)
+    const sortedHospitals = hospitalsWithDistance.sort((a, b) => a.priorityScore - b.priorityScore);
+    setNearbyHospitals(sortedHospitals);
+  };
+
 
   const handleTagClick = (tag) => {
     setSymptoms(tag);
@@ -148,7 +264,11 @@ export default function Home() {
     }
   };
 
-  const handleFindHelp = () => {
+      const handleFindHelp = () => {
+    if (mode === 'emergency') {
+      router.push({ pathname: '/emergency', query: { symptoms: symptoms || '' } });
+      return;
+    }
     analyzeSymptoms();
   };
 
@@ -223,7 +343,7 @@ export default function Home() {
                 <textarea 
                   placeholder={mode === 'emergency' 
                     ? "URGENT: Describe your emergency symptoms in detail (e.g., chest pain for 2 hours, difficulty breathing, medical history...)" 
-                    : "Describe your symptoms and condition in detail (e.g., headache for 3 days, fever 101°F, took aspirin, medical history...)"}
+                    : "Describe your symptoms and condition in detail (e.g., headache for 3 days, fever 101Â°F, took aspirin, medical history...)"}
                   value={symptoms}
                   onChange={(e) => setSymptoms(e.target.value)}
                   style={{
@@ -369,11 +489,11 @@ export default function Home() {
                       justifyContent: 'center',
                       gap: '12px'
                     }}>
-                      <span>📋 Blood tests</span>
-                      <span>🩺 Doctor reports</span>
-                      <span>💊 Prescriptions</span>
-                      <span>🔬 Lab results</span>
-                      <span>📊 Medical charts</span>
+                      <span>ðŸ“‹ Blood tests</span>
+                      <span>ðŸ©º Doctor reports</span>
+                      <span>ðŸ’Š Prescriptions</span>
+                      <span>ðŸ”¬ Lab results</span>
+                      <span>ðŸ“Š Medical charts</span>
                     </div>
                   </div>
                 )}
@@ -550,7 +670,7 @@ export default function Home() {
                       </div>
                       <div className="department-info">
                         <h4>Emergency Department - KL General</h4>
-                        <p>8 beds available • 2 doctors on duty</p>
+                        <p>8 beds available â€¢ 2 doctors on duty</p>
                       </div>
                     </div>
                     
@@ -560,7 +680,7 @@ export default function Home() {
                       </div>
                       <div className="department-info">
                         <h4>Trauma Center - Subang Jaya</h4>
-                        <p>2 beds available • High demand</p>
+                        <p>2 beds available â€¢ High demand</p>
                       </div>
                     </div>
                   </div>
@@ -574,7 +694,7 @@ export default function Home() {
                       </div>
                       <div className="department-info">
                         <h4>Cardiology - Gleneagles</h4>
-                        <p>4 specialists available • 30 min wait</p>
+                        <p>4 specialists available â€¢ 30 min wait</p>
                       </div>
                     </div>
                     
@@ -584,7 +704,7 @@ export default function Home() {
                       </div>
                       <div className="department-info">
                         <h4>Neurology - KL General</h4>
-                        <p>3 specialists available • 45 min wait</p>
+                        <p>3 specialists available â€¢ 45 min wait</p>
                       </div>
                     </div>
                   </div>
@@ -598,7 +718,7 @@ export default function Home() {
                       </div>
                       <div className="department-info">
                         <h4>Operating Theaters - Subang Jaya</h4>
-                        <p>2 theaters available • 1 hr wait</p>
+                        <p>2 theaters available â€¢ 1 hr wait</p>
                       </div>
                     </div>
                   </div>
