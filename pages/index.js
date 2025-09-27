@@ -3,8 +3,7 @@ import Head from 'next/head';
 
 export default function Home() {
   const [symptoms, setSymptoms] = useState('');
-  const [selectedTags, setSelectedTags] = useState([]);
-  const [activeTab, setActiveTab] = useState('Emergency');
+  const [activeTab, setActiveTab] = useState('emergency');
   const [hospitalStats] = useState({
     hospitalsOnline: 28,
     availableBeds: 156,
@@ -12,27 +11,24 @@ export default function Home() {
   });
 
   const symptomTags = [
-    'Fever', 'Headache', 'Chest Pain', 'Shortness of Breath', 'Stomach Pain'
+    'Fever', 'Headache', 'Chest Pain', 'Shortness of Breath', 'Stomach Pain', 'Dizziness'
   ];
 
   const recommendedHospitals = [
     {
       name: 'KL General Hospital',
-      status: 'Good availability - 5-10 min wait',
-      icon: '🏥',
+      status: '20 beds available • 5 min wait time • 15 doctors on duty',
       color: 'green'
     },
     {
       name: 'Subang Jaya Medical Center',
-      status: 'Full capacity - Redirecting patients',
-      icon: '🏢',
-      color: 'red'
+      status: '5 beds left • 30 min wait time • 8 doctors on duty',
+      color: 'orange'
     },
     {
       name: 'Gleneagles Kuala Lumpur',
-      status: 'Limited availability - 20-30 min wait',
-      icon: '🏢',
-      color: 'orange'
+      status: '12 beds available • 15 min wait time • 10 specialists available',
+      color: 'green'
     }
   ];
 
@@ -57,323 +53,342 @@ export default function Home() {
   const emergencyContacts = [
     {
       service: 'Ambulance',
-      status: 'Limited availability - 20-30 min wait',
-      icon: '🚑',
-      color: 'orange'
+      number: '999 • 991 • 994',
+      color: 'red'
     },
     {
       service: 'Poison Control',
-      status: 'Full capacity - Redirecting patients',
-      icon: '☎️',
-      color: 'red'
+      number: '1-800-88-8099',
+      color: 'orange'
     }
   ];
 
   const quickActions = [
-    { name: 'Emergency Assistance', icon: '📋' },
-    { name: 'Book Appointment', icon: '📅' },
-    { name: 'Get Directions', icon: '📍' }
+    { name: 'Emergency Assistance', icon: 'fas fa-ambulance' },
+    { name: 'Book Appointment', icon: 'fas fa-calendar-check' },
+    { name: 'Get Directions', icon: 'fas fa-directions' }
   ];
 
-  const departmentTabs = ['Emergency', 'Specialist', 'Surgery'];
-
   const handleTagClick = (tag) => {
-    if (selectedTags.includes(tag)) {
-      setSelectedTags(selectedTags.filter(t => t !== tag));
-    } else {
-      setSelectedTags([...selectedTags, tag]);
-    }
+    setSymptoms(tag);
   };
 
   const handleFindHelp = () => {
-    const searchQuery = symptoms || selectedTags.join(', ');
-    console.log('Searching for help with:', searchQuery);
-    // Here you would implement the actual search logic
-    alert(`Searching for hospitals that can help with: ${searchQuery}`);
+    const searchQuery = symptoms.trim();
+    if (searchQuery !== '') {
+      console.log('Searching for help with:', searchQuery);
+      alert(`Searching for hospitals that can help with: ${searchQuery}`);
+    }
+  };
+
+  const handleTabClick = (tabId) => {
+    setActiveTab(tabId);
   };
 
   return (
     <>
       <Head>
-        <title>Symptom Finder - Find the Right Hospital</title>
+        <title>Symptom-Based Hospital Finder - Kuala Lumpur</title>
         <meta name="description" content="Find the right hospital based on your symptoms" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <div className="min-h-screen bg-blue-50">
+      <div style={{background: 'var(--bg-primary)'}}>
         {/* Header */}
-        <header className="bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-6">
-              <div className="flex items-center">
-                <div className="text-2xl mr-3">🏥</div>
-                <h1 className="text-2xl font-bold text-gray-900">Symptom Finder</h1>
-        </div>
-              <nav className="hidden md:flex space-x-8">
-                <a href="#" className="text-blue-600 font-medium">Home</a>
-                <a href="#" className="text-gray-700 hover:text-blue-600">Hospitals</a>
-                <a href="#" className="text-gray-700 hover:text-blue-600">Symptoms</a>
-                <a href="#" className="text-gray-700 hover:text-blue-600">Emergency</a>
-                <a href="#" className="text-gray-700 hover:text-blue-600">Health Tips</a>
-        </nav>
-      </div>
-    </div>
-  </header>
+        <header>
+          <div className="container">
+            <div className="header-content">
+              <div className="logo">
+                <i className="fas fa-hospital"></i>
+                <h1>Symptom <span>Finder</span></h1>
+              </div>
+              
+              <nav>
+                <ul>
+                  <li><a href="#" className="active">Home</a></li>
+                  <li><a href="#">Hospitals</a></li>
+                  <li><a href="#">Symptoms</a></li>
+                  <li><a href="#">Emergency</a></li>
+                  <li><a href="#">Health Tips</a></li>
+                </ul>
+              </nav>
+            </div>
+          </div>
+        </header>
+
+        {/* Hero Section */}
+        <section className="hero">
+          <div className="container">
+            <h2>What symptoms are you experiencing?</h2>
+            <p>Describe how you're feeling and we'll help you find the right hospital with available capacity</p>
+            
+            <div className="search-box">
+              <div className="search-input-container">
+                <input 
+                  type="text" 
+                  id="symptom-input" 
+                  placeholder="Describe your symptoms (e.g., headache, fever, chest pain...)"
+                  value={symptoms}
+                  onChange={(e) => setSymptoms(e.target.value)}
+                />
+                <button id="search-btn" onClick={handleFindHelp}>
+                  <i className="fas fa-search"></i> Find Help
+                </button>
+              </div>
+              <div className="symptom-suggestions">
+                {symptomTags.map((tag) => (
+                  <button key={tag} className="symptom-tag" onClick={() => handleTagClick(tag)}>
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Left Column - Main Content */}
-            <div className="lg:col-span-3 space-y-8">
-              {/* Hero Section */}
-              <div className="bg-white rounded-lg shadow-md p-8">
-                <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                  What symptoms are you experiencing?
-                </h2>
-                <p className="text-gray-600 mb-6">
-                  Describe how you're feeling and we'll help you find the right hospital with available capacity.
-                </p>
-                
-                <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                  <input
-                    type="text"
-                    placeholder="Describe your symptoms (e.g., headache, fever, chest pain)"
-                    value={symptoms}
-                    onChange={(e) => setSymptoms(e.target.value)}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <button
-                    onClick={handleFindHelp}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Find Help
-                  </button>
-      </div>
-      
-                <div className="flex flex-wrap gap-2">
-                  {symptomTags.map((tag) => (
-                    <button
-                      key={tag}
-                      onClick={() => handleTagClick(tag)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                        selectedTags.includes(tag)
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-        </div>
-      </div>
-      
-              {/* Hospital Statistics */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-blue-100 rounded-lg p-6 text-center">
-                  <div className="text-4xl font-bold text-blue-800 mb-2">
-                    {hospitalStats.hospitalsOnline}
-        </div>
-                  <div className="text-blue-600 font-medium">Hospitals Online</div>
-      </div>
-                <div className="bg-blue-100 rounded-lg p-6 text-center">
-                  <div className="text-4xl font-bold text-blue-800 mb-2">
-                    {hospitalStats.availableBeds}
-    </div>
-                  <div className="text-blue-600 font-medium">Available Beds</div>
-          </div>
-                <div className="bg-blue-100 rounded-lg p-6 text-center">
-                  <div className="text-4xl font-bold text-blue-800 mb-2">
-                    {hospitalStats.doctorsOnDuty}
-          </div>
-                  <div className="text-blue-600 font-medium">Doctors On Duty</div>
-          </div>
-        </div>
-        
+        <div className="container">
+          <div className="main-content">
+            {/* Left Column */}
+            <div className="left-column">
+              {/* Stats Overview */}
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <h3>{hospitalStats.hospitalsOnline}</h3>
+                  <p>Hospitals Online</p>
+                </div>
+                <div className="stat-card">
+                  <h3>{hospitalStats.availableBeds}</h3>
+                  <p>Available Beds</p>
+                </div>
+                <div className="stat-card">
+                  <h3>{hospitalStats.doctorsOnDuty}</h3>
+                  <p>Doctors On Duty</p>
+                </div>
+              </div>
+              
               {/* Recommended Hospitals */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold text-gray-900">Recommended Hospitals</h3>
-                  <a href="#" className="text-blue-600 hover:text-blue-800 font-medium">
-                    View All Hospitals
-                  </a>
-        </div>
-        
-                <div className="space-y-4">
-                  {recommendedHospitals.map((hospital, index) => (
-                    <div key={index} className="flex items-center p-4 border border-gray-200 rounded-lg">
-                      <div className="text-2xl mr-4">{hospital.icon}</div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-900">{hospital.name}</div>
-                        <div className={`text-sm ${
-                          hospital.color === 'green' ? 'text-green-600' :
-                          hospital.color === 'red' ? 'text-red-600' : 'text-orange-600'
-                        }`}>
-                          {hospital.status}
-            </div>
-          </div>
-        </div>
-                  ))}
-          </div>
-        </div>
-        
+              <div className="section-header">
+                <h2 id="recommendation-title">Recommended Hospitals</h2>
+                <a href="#" className="view-all">View All Hospitals</a>
+              </div>
+              
+              {recommendedHospitals.map((hospital, index) => (
+                <div key={index} className={`status-item ${hospital.color === 'orange' ? 'medium' : ''}`}>
+                  <div className={`status-icon ${hospital.color}`}>
+                    <i className="fas fa-hospital"></i>
+                  </div>
+                  <div className="status-info">
+                    <h3>{hospital.name}</h3>
+                    <p>{hospital.status}</p>
+                    <div className="progress-bar">
+                      <div className={`progress-fill ${hospital.color}`}></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
               {/* Hospital Map */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">KL Hospital Map</h3>
-                <div className="bg-gray-100 rounded-lg h-64 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-4xl mb-2">🗺️</div>
-                    <div className="text-gray-600">
-                      Interactive Hospital Location Map
-          </div>
-                    <div className="text-sm text-gray-500">
-                      Showing hospitals with available capacity in green
+              <div className="card">
+                <div className="section-header">
+                  <h2>KL Hospital Map</h2>
+                </div>
+                
+                <div className="hospital-map">
+                  <div className="map-placeholder">
+                    <i className="fas fa-map-marker-alt"></i>
+                    <p>Interactive Hospital Location Map</p>
+                    <small>Showing hospitals with available capacity in green</small>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Department Availability */}
+              <div className="card">
+                <div className="department-tabs">
+                  <button 
+                    className={`tab ${activeTab === 'emergency' ? 'active' : ''}`} 
+                    onClick={() => handleTabClick('emergency')}
+                  >
+                    Emergency
+                  </button>
+                  <button 
+                    className={`tab ${activeTab === 'specialist' ? 'active' : ''}`} 
+                    onClick={() => handleTabClick('specialist')}
+                  >
+                    Specialist
+                  </button>
+                  <button 
+                    className={`tab ${activeTab === 'surgery' ? 'active' : ''}`} 
+                    onClick={() => handleTabClick('surgery')}
+                  >
+                    Surgery
+                  </button>
+                </div>
+                
+                <div className={`tab-content ${activeTab === 'emergency' ? 'active' : ''}`} id="emergency">
+                  <div className="department-list">
+                    <div className="department-item">
+                      <div className="department-icon green">
+                        <i className="fas fa-heartbeat"></i>
+                      </div>
+                      <div className="department-info">
+                        <h4>Emergency Department - KL General</h4>
+                        <p>8 beds available • 2 doctors on duty</p>
+                      </div>
+                    </div>
+                    
+                    <div className="department-item">
+                      <div className="department-icon orange">
+                        <i className="fas fa-ambulance"></i>
+                      </div>
+                      <div className="department-info">
+                        <h4>Trauma Center - Subang Jaya</h4>
+                        <p>2 beds available • High demand</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className={`tab-content ${activeTab === 'specialist' ? 'active' : ''}`} id="specialist">
+                  <div className="department-list">
+                    <div className="department-item">
+                      <div className="department-icon green">
+                        <i className="fas fa-stethoscope"></i>
+                      </div>
+                      <div className="department-info">
+                        <h4>Cardiology - Gleneagles</h4>
+                        <p>4 specialists available • 30 min wait</p>
+                      </div>
+                    </div>
+                    
+                    <div className="department-item">
+                      <div className="department-icon green">
+                        <i className="fas fa-brain"></i>
+                      </div>
+                      <div className="department-info">
+                        <h4>Neurology - KL General</h4>
+                        <p>3 specialists available • 45 min wait</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className={`tab-content ${activeTab === 'surgery' ? 'active' : ''}`} id="surgery">
+                  <div className="department-list">
+                    <div className="department-item">
+                      <div className="department-icon orange">
+                        <i className="fas fa-syringe"></i>
+                      </div>
+                      <div className="department-info">
+                        <h4>Operating Theaters - Subang Jaya</h4>
+                        <p>2 theaters available • 1 hr wait</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Right Sidebar */}
+            <div className="sidebar">
+              <div className="card sidebar-card">
+                <h3>Common Symptoms Guide</h3>
+                
+                {commonSymptoms.map((symptom, index) => (
+                  <div key={index} className="favorite-item">
+                    <div className="favorite-info">
+                      <h4>{symptom.symptoms}</h4>
+                      <p>{symptom.department}</p>
+                    </div>
+                    <div className={`favorite-status ${symptom.urgency === 'Urgent' ? 'urgent' : ''}`}>
+                      {symptom.urgency}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="card sidebar-card">
+                <h3>Emergency Contacts</h3>
+                
+                {emergencyContacts.map((contact, index) => (
+                  <div key={index} className="status-item">
+                    <div className={`status-icon ${contact.color}`}>
+                      <i className={contact.service === 'Ambulance' ? 'fas fa-ambulance' : 'fas fa-phone'}></i>
+                    </div>
+                    <div className="status-info">
+                      <h3>{contact.service}</h3>
+                      <p>{contact.number}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="card sidebar-card">
+                <h3>Quick Actions</h3>
+                
+                <div className="department-list">
+                  {quickActions.map((action, index) => (
+                    <div key={index} className="department-item">
+                      <i className={action.icon} style={{color: 'var(--accent)'}}></i>
+                      <div className="department-info">
+                        <h4>{action.name}</h4>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-                </div>
-              </div>
-              
-              {/* Department Tabs */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex space-x-1 mb-6">
-                  {departmentTabs.map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                        activeTab === tab
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {tab}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center p-4 border border-gray-200 rounded-lg">
-                    <div className="text-2xl mr-4">❤️</div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-gray-900">Emergency Department - KL General</div>
-                      <div className="text-green-600 text-sm">6 beds available + 2 doctors on duty</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center p-4 border border-gray-200 rounded-lg">
-                    <div className="text-2xl mr-4">❤️</div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-gray-900">Trauma Center - Subang Jaya</div>
-                      <div className="text-orange-600 text-sm">Limited availability - 1 doctor on duty</div>
-                    </div>
-                  </div>
-              </div>
-            </div>
-          </div>
-          
-            {/* Right Column - Sidebar */}
-            <div className="lg:col-span-1 space-y-6">
-              {/* Common Symptoms Guide */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Common Symptoms Guide</h3>
-                <div className="space-y-4">
-                  {commonSymptoms.map((symptom, index) => (
-                    <div key={index} className="border-b border-gray-100 pb-3 last:border-b-0">
-                      <div className="font-semibold text-gray-900 mb-1">{symptom.symptoms}</div>
-                      <div className="text-gray-600 text-sm mb-2">{symptom.department}</div>
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                        symptom.urgency === 'Urgent' 
-                          ? 'bg-red-100 text-red-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {symptom.urgency}
-                      </span>
-                </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Emergency Contacts */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Emergency Contacts</h3>
-                <div className="space-y-4">
-                  {emergencyContacts.map((contact, index) => (
-                    <div key={index} className="flex items-center">
-                      <div className="text-xl mr-3">{contact.icon}</div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-900">{contact.service}</div>
-                        <div className={`text-sm ${
-                          contact.color === 'orange' ? 'text-orange-600' : 'text-red-600'
-                        }`}>
-                          {contact.status}
-                        </div>
-                      </div>
-                </div>
-                  ))}
-            </div>
-          </div>
-          
-              {/* Quick Actions */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h3>
-                <div className="space-y-3">
-                  {quickActions.map((action, index) => (
-                    <a
-                      key={index}
-                      href="#"
-                      className="flex items-center p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                    >
-                      <div className="text-xl mr-3">{action.icon}</div>
-                      <div className="font-medium text-blue-800">{action.name}</div>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </main>
 
         {/* Footer */}
-        <footer className="bg-gray-800 text-white mt-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-              <div>
-                <h4 className="text-lg font-semibold mb-4">Symptom Finder</h4>
-                <ul className="space-y-2 text-gray-300">
-                  <li><a href="#" className="hover:text-white">About Us</a></li>
-                  <li><a href="#" className="hover:text-white">Contact</a></li>
-                  <li><a href="#" className="hover:text-white">Privacy Policy</a></li>
-                  <li><a href="#" className="hover:text-white">Terms of Service</a></li>
-                </ul>
-            </div>
-              <div>
-                <h4 className="text-lg font-semibold mb-4">Hospital Resources</h4>
-                <ul className="space-y-2 text-gray-300">
-                  <li><a href="#" className="hover:text-white">Emergency Contacts</a></li>
-                  <li><a href="#" className="hover:text-white">Medical Specialists</a></li>
-                  <li><a href="#" className="hover:text-white">Pharmacy Locator</a></li>
-                  <li><a href="#" className="hover:text-white">Health Tips</a></li>
-                </ul>
-          </div>
-              <div>
-                <h4 className="text-lg font-semibold mb-4">Support</h4>
-                <ul className="space-y-2 text-gray-300">
-                  <li><a href="#" className="hover:text-white">Help Center</a></li>
-                  <li><a href="#" className="hover:text-white">Report Issue</a></li>
-                  <li><a href="#" className="hover:text-white">Feedback</a></li>
-                  <li><a href="#" className="hover:text-white">API Access</a></li>
+        <footer>
+          <div className="container">
+            <div className="footer-content">
+              <div className="footer-column">
+                <h3>Symptom Finder</h3>
+                <ul>
+                  <li><a href="#">About Us</a></li>
+                  <li><a href="#">Contact</a></li>
+                  <li><a href="#">Privacy Policy</a></li>
+                  <li><a href="#">Terms of Service</a></li>
                 </ul>
               </div>
-              <div>
-                <h4 className="text-lg font-semibold mb-4">Connect</h4>
-                <ul className="space-y-2 text-gray-300">
-                  <li><a href="#" className="hover:text-white">Twitter</a></li>
-                  <li><a href="#" className="hover:text-white">Facebook</a></li>
-                  <li><a href="#" className="hover:text-white">Instagram</a></li>
-                  <li><a href="#" className="hover:text-white">LinkedIn</a></li>
+              
+              <div className="footer-column">
+                <h3>Hospital Resources</h3>
+                <ul>
+                  <li><a href="#">Emergency Contacts</a></li>
+                  <li><a href="#">Medical Specialists</a></li>
+                  <li><a href="#">Pharmacy Locator</a></li>
+                  <li><a href="#">Health Tips</a></li>
+                </ul>
+              </div>
+              
+              <div className="footer-column">
+                <h3>Support</h3>
+                <ul>
+                  <li><a href="#">Help Center</a></li>
+                  <li><a href="#">Report Issue</a></li>
+                  <li><a href="#">Feedback</a></li>
+                  <li><a href="#">API Access</a></li>
+                </ul>
+              </div>
+              
+              <div className="footer-column">
+                <h3>Connect</h3>
+                <ul>
+                  <li><a href="#">Twitter</a></li>
+                  <li><a href="#">Facebook</a></li>
+                  <li><a href="#">Instagram</a></li>
+                  <li><a href="#">LinkedIn</a></li>
                 </ul>
               </div>
             </div>
-            <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
-              © 2023 Symptom-Based Hospital Finder. All rights reserved.
+            
+            <div className="copyright">
+              <p>&copy; 2023 Symptom-Based Hospital Finder. All rights reserved.</p>
             </div>
           </div>
         </footer>
