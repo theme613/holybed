@@ -27,6 +27,8 @@ export default function Home() {
   const [dataChanges, setDataChanges] = useState([]);
   const [previousStats, setPreviousStats] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [preventiveAnalysis, setPreventiveAnalysis] = useState(null);
+  const [isAnalyzingPreventive, setIsAnalyzingPreventive] = useState(false);
   // Map related state
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -450,6 +452,9 @@ export default function Home() {
         setPdfContent(result.text);
         console.log('PDF content extracted using pdf-parse:', result.text.substring(0, Math.min(200, result.text.length)) + '...');
         console.log(`Extraction method: ${result.extractionMethod}, Pages: ${result.numPages}, File: ${result.fileName}`);
+        
+        // Automatically trigger preventive analysis for healthcare documents
+        await analyzePreventiveCare(result.text);
       } else {
         const errorMessage = result.message || 'Unknown error occurred';
         console.error('PDF extraction failed:', result);
@@ -460,6 +465,70 @@ export default function Home() {
       alert('Error uploading PDF');
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const analyzePreventiveCare = async (documentContent) => {
+    if (!documentContent) return;
+
+    setIsAnalyzingPreventive(true);
+    setPreventiveAnalysis(null);
+
+    try {
+      const response = await fetch('/api/preventive-care-analysis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pdfContent: documentContent,
+          symptoms: symptoms.trim(),
+          // Could add more patient info in the future
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setPreventiveAnalysis(result.preventiveAnalysis);
+        console.log('Preventive analysis completed:', result.preventiveAnalysis);
+        
+        // Store preventive analysis in localStorage
+        localStorage.setItem('preventiveAnalysis', JSON.stringify(result.preventiveAnalysis));
+        localStorage.setItem('preventiveAnalysisTimestamp', new Date().toISOString());
+        
+        // Show success notification
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: #22c55e;
+          color: white;
+          padding: 12px 20px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: bold;
+          z-index: 10000;
+          box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        `;
+        notification.textContent = '✅ Preventive care analysis completed!';
+        document.body.appendChild(notification);
+        setTimeout(() => {
+          if (document.body.contains(notification)) {
+            document.body.removeChild(notification);
+          }
+        }, 4000);
+        
+      } else {
+        console.error('Preventive analysis error:', result);
+        // Don't show alert for preventive analysis failures - it's a bonus feature
+      }
+    } catch (error) {
+      console.error('Error analyzing preventive care:', error);
+      // Silent failure for preventive analysis
+    } finally {
+      setIsAnalyzingPreventive(false);
     }
   };
 
@@ -825,20 +894,72 @@ export default function Home() {
                   
                   {pdfFile && (
                     <div style={{
-                      fontSize: '14px', 
-                      color: '#16a34a',
-                      background: '#f0fdf4',
-                      padding: '12px 24px',
-                      borderRadius: '32px',
-                      border: '1px solid #22c55e',
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      boxShadow: '0 2px 8px rgba(34, 197, 94, 0.15)',
-                      fontWeight: '500'
+                      flexDirection: 'column',
+                      gap: '12px',
+                      alignItems: 'center'
                     }}>
-                      <i className="fas fa-check-circle" style={{color: '#22c55e', fontSize: '16px'}}></i>
-                      {pdfFile.name} uploaded successfully
+                      <div style={{
+                        fontSize: '14px', 
+                        color: '#16a34a',
+                        background: '#f0fdf4',
+                        padding: '12px 24px',
+                        borderRadius: '32px',
+                        border: '1px solid #22c55e',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        boxShadow: '0 2px 8px rgba(34, 197, 94, 0.15)',
+                        fontWeight: '500'
+                      }}>
+                        <i className="fas fa-check-circle" style={{color: '#22c55e', fontSize: '16px'}}></i>
+                        {pdfFile.name} uploaded successfully
+                      </div>
+                      
+                      {/* Preventive Analysis Status */}
+                      {isAnalyzingPreventive && (
+                        <div style={{
+                          fontSize: '13px', 
+                          color: '#3b82f6',
+                          background: '#eff6ff',
+                          padding: '10px 20px',
+                          borderRadius: '24px',
+                          border: '1px solid #60a5fa',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          fontWeight: '500'
+                        }}>
+                          <i className="fas fa-spinner fa-spin" style={{color: '#3b82f6', fontSize: '14px'}}></i>
+                          Analyzing for preventive care recommendations...
+                        </div>
+                      )}
+                      
+                      {preventiveAnalysis && !isAnalyzingPreventive && (
+                        <div style={{
+                          fontSize: '13px', 
+                          color: '#059669',
+                          background: '#ecfdf5',
+                          padding: '10px 20px',
+                          borderRadius: '24px',
+                          border: '1px solid #10b981',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          fontWeight: '500',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => {
+                          // Scroll to preventive analysis section if it exists
+                          const preventiveSection = document.getElementById('preventive-analysis-section');
+                          if (preventiveSection) {
+                            preventiveSection.scrollIntoView({ behavior: 'smooth' });
+                          }
+                        }}>
+                          <i className="fas fa-shield-alt" style={{color: '#10b981', fontSize: '14px'}}></i>
+                          Preventive care recommendations ready! Click to view
+                        </div>
+                      )}
                     </div>
                   )}
                   
@@ -994,6 +1115,332 @@ export default function Home() {
                   <p style={{color: '#d32f2f'}}>
                     This appears to be a medical emergency. Please call 999 immediately or go to the nearest emergency room.
                   </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Preventive Care Analysis Results */}
+        {preventiveAnalysis && (
+          <div className="container" id="preventive-analysis-section" style={{marginTop: '20px'}}>
+            <div className="preventive-analysis-results card" style={{
+              padding: '24px',
+              marginBottom: '20px',
+              borderLeft: '5px solid #10b981',
+              background: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)'
+            }}>
+              <h2 style={{
+                color: '#059669',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <i className="fas fa-shield-alt"></i>
+                Preventive Care Recommendations
+              </h2>
+              
+              <div style={{
+                background: '#fef3c7',
+                border: '1px solid #f59e0b',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '20px',
+                fontSize: '13px',
+                color: '#92400e'
+              }}>
+                <i className="fas fa-exclamation-triangle" style={{marginRight: '8px'}}></i>
+                <strong>Medical Disclaimer:</strong> These are general preventive care suggestions based on your document analysis. Always consult with your healthcare provider before making significant changes to your health routine.
+              </div>
+
+              {/* Risk Factors */}
+              {preventiveAnalysis.riskFactors && preventiveAnalysis.riskFactors.length > 0 && (
+                <div style={{marginBottom: '24px'}}>
+                  <h3 style={{color: '#374151', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <i className="fas fa-exclamation-circle"></i>
+                    Identified Risk Factors
+                  </h3>
+                  <div style={{display: 'grid', gap: '12px'}}>
+                    {preventiveAnalysis.riskFactors.map((risk, index) => (
+                      <div key={index} style={{
+                        background: 'white',
+                        padding: '16px',
+                        borderRadius: '8px',
+                        border: `2px solid ${
+                          risk.severity === 'high' ? '#f87171' :
+                          risk.severity === 'moderate' ? '#fbbf24' : '#86efac'
+                        }`,
+                        borderLeft: `6px solid ${
+                          risk.severity === 'high' ? '#ef4444' :
+                          risk.severity === 'moderate' ? '#f59e0b' : '#22c55e'
+                        }`
+                      }}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px'}}>
+                          <h4 style={{color: '#374151', margin: 0}}>{risk.factor}</h4>
+                          <span style={{
+                            background: risk.severity === 'high' ? '#fef2f2' :
+                                       risk.severity === 'moderate' ? '#fefbf0' : '#f0fdf4',
+                            color: risk.severity === 'high' ? '#dc2626' :
+                                   risk.severity === 'moderate' ? '#d97706' : '#16a34a',
+                            padding: '4px 8px',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            textTransform: 'uppercase'
+                          }}>
+                            {risk.severity} Risk
+                          </span>
+                        </div>
+                        <p style={{color: '#6b7280', fontSize: '14px', margin: 0}}>{risk.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Preventive Measures */}
+              {preventiveAnalysis.preventiveMeasures && (
+                <div style={{marginBottom: '24px'}}>
+                  <h3 style={{color: '#374151', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <i className="fas fa-heart"></i>
+                    Preventive Measures
+                  </h3>
+
+                  {/* Lifestyle Recommendations */}
+                  {preventiveAnalysis.preventiveMeasures.lifestyle && preventiveAnalysis.preventiveMeasures.lifestyle.length > 0 && (
+                    <div style={{marginBottom: '20px'}}>
+                      <h4 style={{color: '#059669', marginBottom: '12px'}}>🌱 Lifestyle Recommendations</h4>
+                      <div style={{display: 'grid', gap: '10px'}}>
+                        {preventiveAnalysis.preventiveMeasures.lifestyle.map((lifestyle, index) => (
+                          <div key={index} style={{
+                            background: 'white',
+                            padding: '14px',
+                            borderRadius: '8px',
+                            border: '1px solid #d1fae5',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '12px'
+                          }}>
+                            <div style={{
+                              background: lifestyle.priority === 'high' ? '#dc2626' :
+                                         lifestyle.priority === 'medium' ? '#f59e0b' : '#22c55e',
+                              color: 'white',
+                              padding: '4px 8px',
+                              borderRadius: '12px',
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              minWidth: '60px',
+                              textAlign: 'center',
+                              textTransform: 'uppercase'
+                            }}>
+                              {lifestyle.priority}
+                            </div>
+                            <div style={{flex: 1}}>
+                              <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px'}}>
+                                <span style={{
+                                  background: '#f3f4f6',
+                                  color: '#374151',
+                                  padding: '2px 6px',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  fontWeight: '500'
+                                }}>
+                                  {lifestyle.category}
+                                </span>
+                                <span style={{
+                                  color: '#6b7280',
+                                  fontSize: '12px'
+                                }}>
+                                  Timeline: {lifestyle.timeframe}
+                                </span>
+                              </div>
+                              <p style={{margin: 0, color: '#374151', fontSize: '14px'}}>{lifestyle.recommendation}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Medical Screenings */}
+                  {preventiveAnalysis.preventiveMeasures.medicalScreenings && preventiveAnalysis.preventiveMeasures.medicalScreenings.length > 0 && (
+                    <div style={{marginBottom: '20px'}}>
+                      <h4 style={{color: '#059669', marginBottom: '12px'}}>🩺 Recommended Medical Screenings</h4>
+                      <div style={{display: 'grid', gap: '10px'}}>
+                        {preventiveAnalysis.preventiveMeasures.medicalScreenings.map((screening, index) => (
+                          <div key={index} style={{
+                            background: 'white',
+                            padding: '14px',
+                            borderRadius: '8px',
+                            border: '1px solid #dbeafe'
+                          }}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px'}}>
+                              <h5 style={{color: '#1f2937', margin: 0}}>{screening.screening}</h5>
+                              <span style={{
+                                background: screening.urgency === 'urgent' ? '#fef2f2' :
+                                           screening.urgency === 'soon' ? '#fefbf0' : '#f0f9ff',
+                                color: screening.urgency === 'urgent' ? '#dc2626' :
+                                       screening.urgency === 'soon' ? '#d97706' : '#2563eb',
+                                padding: '3px 8px',
+                                borderRadius: '10px',
+                                fontSize: '11px',
+                                fontWeight: '600'
+                              }}>
+                                {screening.urgency}
+                              </span>
+                            </div>
+                            <p style={{color: '#6b7280', fontSize: '13px', margin: '0 0 6px 0'}}>
+                              <strong>Frequency:</strong> {screening.frequency}
+                            </p>
+                            <p style={{color: '#6b7280', fontSize: '13px', margin: 0}}>{screening.reason}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Supplementation */}
+                  {preventiveAnalysis.preventiveMeasures.supplementation && preventiveAnalysis.preventiveMeasures.supplementation.length > 0 && (
+                    <div style={{marginBottom: '20px'}}>
+                      <h4 style={{color: '#059669', marginBottom: '12px'}}>💊 Supplementation Recommendations</h4>
+                      <div style={{display: 'grid', gap: '10px'}}>
+                        {preventiveAnalysis.preventiveMeasures.supplementation.map((supplement, index) => (
+                          <div key={index} style={{
+                            background: supplement.consultPhysician ? '#fefbf0' : 'white',
+                            padding: '14px',
+                            borderRadius: '8px',
+                            border: supplement.consultPhysician ? '1px solid #f59e0b' : '1px solid #e5e7eb'
+                          }}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px'}}>
+                              <h5 style={{color: '#1f2937', margin: 0}}>{supplement.supplement}</h5>
+                              {supplement.consultPhysician && (
+                                <span style={{
+                                  background: '#fbbf24',
+                                  color: 'white',
+                                  padding: '3px 8px',
+                                  borderRadius: '10px',
+                                  fontSize: '10px',
+                                  fontWeight: '600'
+                                }}>
+                                  Consult Doctor
+                                </span>
+                              )}
+                            </div>
+                            <p style={{color: '#6b7280', fontSize: '13px', margin: '0 0 6px 0'}}>
+                              <strong>Dosage:</strong> {supplement.dosage}
+                            </p>
+                            <p style={{color: '#6b7280', fontSize: '13px', margin: 0}}>{supplement.reason}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Warning Signs */}
+              {preventiveAnalysis.warningSignsToWatch && preventiveAnalysis.warningSignsToWatch.length > 0 && (
+                <div style={{marginBottom: '24px'}}>
+                  <h3 style={{color: '#374151', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <i className="fas fa-eye"></i>
+                    Warning Signs to Watch
+                  </h3>
+                  <div style={{display: 'grid', gap: '10px'}}>
+                    {preventiveAnalysis.warningSignsToWatch.map((warning, index) => (
+                      <div key={index} style={{
+                        background: warning.urgency === 'immediate' ? '#fef2f2' : 'white',
+                        padding: '14px',
+                        borderRadius: '8px',
+                        border: `1px solid ${warning.urgency === 'immediate' ? '#fca5a5' : '#e5e7eb'}`,
+                        borderLeft: `4px solid ${
+                          warning.urgency === 'immediate' ? '#ef4444' :
+                          warning.urgency === 'within_days' ? '#f59e0b' : '#22c55e'
+                        }`
+                      }}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px'}}>
+                          <h5 style={{color: '#1f2937', margin: 0}}>{warning.symptom}</h5>
+                          <span style={{
+                            background: warning.urgency === 'immediate' ? '#dc2626' :
+                                       warning.urgency === 'within_days' ? '#f59e0b' : '#22c55e',
+                            color: 'white',
+                            padding: '3px 8px',
+                            borderRadius: '10px',
+                            fontSize: '10px',
+                            fontWeight: '600',
+                            textTransform: 'uppercase'
+                          }}>
+                            {warning.urgency.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <p style={{color: '#6b7280', fontSize: '13px', margin: 0}}>{warning.action}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Follow-up Recommendations */}
+              {preventiveAnalysis.followUpRecommendations && (
+                <div style={{marginBottom: '24px'}}>
+                  <h3 style={{color: '#374151', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <i className="fas fa-calendar-check"></i>
+                    Follow-up Recommendations
+                  </h3>
+                  <div style={{
+                    background: 'white',
+                    padding: '16px',
+                    borderRadius: '8px',
+                    border: '1px solid #e5e7eb'
+                  }}>
+                    {preventiveAnalysis.followUpRecommendations.nextCheckup && (
+                      <p style={{margin: '0 0 8px 0', color: '#374151'}}>
+                        <strong>Next Checkup:</strong> {preventiveAnalysis.followUpRecommendations.nextCheckup}
+                      </p>
+                    )}
+                    {preventiveAnalysis.followUpRecommendations.specialistReferral && (
+                      <p style={{margin: '0 0 8px 0', color: '#374151'}}>
+                        <strong>Specialist Consultation:</strong> {preventiveAnalysis.followUpRecommendations.specialistReferral}
+                      </p>
+                    )}
+                    {preventiveAnalysis.followUpRecommendations.labTestsToMonitor && preventiveAnalysis.followUpRecommendations.labTestsToMonitor.length > 0 && (
+                      <div>
+                        <strong style={{color: '#374151'}}>Lab Tests to Monitor:</strong>
+                        <ul style={{margin: '4px 0 0 20px', color: '#6b7280'}}>
+                          {preventiveAnalysis.followUpRecommendations.labTestsToMonitor.map((test, index) => (
+                            <li key={index} style={{margin: '2px 0'}}>{test}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Health Goals */}
+              {preventiveAnalysis.healthGoals && preventiveAnalysis.healthGoals.length > 0 && (
+                <div style={{marginBottom: '16px'}}>
+                  <h3 style={{color: '#374151', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <i className="fas fa-target"></i>
+                    Health Goals
+                  </h3>
+                  <div style={{display: 'grid', gap: '10px'}}>
+                    {preventiveAnalysis.healthGoals.map((goal, index) => (
+                      <div key={index} style={{
+                        background: 'white',
+                        padding: '14px',
+                        borderRadius: '8px',
+                        border: '1px solid #d1fae5',
+                        borderLeft: '4px solid #22c55e'
+                      }}>
+                        <h5 style={{color: '#1f2937', margin: '0 0 8px 0'}}>{goal.goal}</h5>
+                        <div style={{display: 'flex', gap: '16px', fontSize: '13px', color: '#6b7280'}}>
+                          <span><strong>Timeline:</strong> {goal.timeline}</span>
+                          <span><strong>Success Metric:</strong> {goal.measurableTarget}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
