@@ -215,17 +215,22 @@ export default function Home() {
     formData.append('pdf', file);
 
     try {
-      const response = await fetch('/api/upload-pdf', {
+      const response = await fetch('/api/simple-pdf-parse', {
         method: 'POST',
         body: formData,
       });
 
       const result = await response.json();
-      if (result.success) {
+      console.log('PDF parsing response:', result);
+      
+      if (result.success && result.text) {
         setPdfContent(result.text);
-        console.log('PDF content extracted:', result.text.substring(0, 200) + '...');
+        console.log('PDF content extracted using pdf-parse:', result.text.substring(0, Math.min(200, result.text.length)) + '...');
+        console.log(`Extraction method: ${result.extractionMethod}, Pages: ${result.numPages}, File: ${result.fileName}`);
       } else {
-        alert('Failed to extract text from PDF: ' + result.message);
+        const errorMessage = result.message || 'Unknown error occurred';
+        console.error('PDF extraction failed:', result);
+        alert('Failed to extract text from PDF: ' + errorMessage);
       }
     } catch (error) {
       console.error('Error uploading PDF:', error);
@@ -334,6 +339,27 @@ export default function Home() {
                   <li><a href="#">Symptoms</a></li>
                   <li><a href="#">Emergency</a></li>
                   <li><a href="#">Health Tips</a></li>
+                  <li>
+                    <button 
+                      onClick={() => router.push('/pdf-analysis')}
+                      style={{
+                        background: 'none',
+                        border: '1px solid #28a745',
+                        color: '#28a745',
+                        padding: '6px 12px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        marginRight: '8px'
+                      }}
+                    >
+                      <i className="fas fa-file-medical"></i>
+                      PDF Analysis
+                    </button>
+                  </li>
                   <li>
                     <button 
                       onClick={() => router.push('/result')}
