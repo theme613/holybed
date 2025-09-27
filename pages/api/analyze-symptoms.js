@@ -16,6 +16,12 @@ export default async function handler(req, res) {
       return res.status(400).json({ message: 'Symptoms, description, or PDF content is required' });
     }
 
+    // Check if OpenAI API key is available
+    if (!process.env.OPENAI_API_KEY) {
+      console.log('⚠️ OpenAI API key not found, using fallback analysis');
+      return provideFallbackAnalysis(symptoms, description, pdfContent, mode, res);
+    }
+
     const prompt = `You are a medical AI assistant. Analyze the following symptoms and determine the severity level and recommended action.
 
 Mode: ${mode || 'normal'}
@@ -108,4 +114,82 @@ Respond ONLY with valid JSON, no additional text.`;
       timestamp: new Date().toISOString()
     });
   }
+}
+
+// Fallback analysis when OpenAI is not available
+function provideFallbackAnalysis(symptoms, description, pdfContent, mode, res) {
+  const symptomText = (symptoms || '').toLowerCase();
+  const descText = (description || '').toLowerCase();
+  const fullText = `${symptomText} ${descText}`.trim();
+  
+  let analysis = {
+    severity: 'moderate',
+    category: 'General',
+    recommendedAction: 'Consult with a healthcare provider for proper evaluation',
+    urgencyExplanation: 'Based on symptom analysis, medical consultation is recommended',
+    recommendedDepartment: 'General Practice',
+    estimatedWaitTime: '30-60 minutes'
+  };
+
+  // Emergency symptoms
+  if (fullText.includes('chest pain') || fullText.includes('difficulty breathing') || 
+      fullText.includes('shortness of breath') || fullText.includes('severe bleeding') ||
+      fullText.includes('unconscious') || fullText.includes('stroke') ||
+      fullText.includes('heart attack') || fullText.includes('severe headache')) {
+    analysis = {
+      severity: 'emergency',
+      category: 'Emergency',
+      recommendedAction: 'Seek immediate emergency medical attention. Call 999 or go to the nearest emergency room immediately.',
+      urgencyExplanation: 'These symptoms may indicate a life-threatening condition requiring immediate medical intervention',
+      recommendedDepartment: 'Emergency Department',
+      estimatedWaitTime: 'Immediate'
+    };
+  }
+  // Cardiovascular symptoms
+  else if (fullText.includes('chest pain') || fullText.includes('heart') || 
+           fullText.includes('cardiac') || fullText.includes('palpitation')) {
+    analysis.category = 'Cardiovascular';
+    analysis.recommendedDepartment = 'Cardiology';
+    analysis.severity = 'urgent';
+    analysis.recommendedAction = 'Seek prompt medical attention at a cardiology department or emergency room';
+  }
+  // Neurological symptoms
+  else if (fullText.includes('headache') || fullText.includes('dizziness') || 
+           fullText.includes('weakness') || fullText.includes('numbness') ||
+           fullText.includes('confusion') || fullText.includes('seizure')) {
+    analysis.category = 'Neurological';
+    analysis.recommendedDepartment = 'Neurology';
+  }
+  // Respiratory symptoms
+  else if (fullText.includes('cough') || fullText.includes('sore throat') || 
+           fullText.includes('breathing') || fullText.includes('fever')) {
+    analysis.category = 'Respiratory';
+    analysis.recommendedDepartment = 'Respiratory Medicine';
+  }
+  // Gastrointestinal symptoms
+  else if (fullText.includes('stomach pain') || fullText.includes('nausea') || 
+           fullText.includes('vomiting') || fullText.includes('diarrhea')) {
+    analysis.category = 'Gastrointestinal';
+    analysis.recommendedDepartment = 'Gastroenterology';
+  }
+  // Orthopedic symptoms
+  else if (fullText.includes('back pain') || fullText.includes('joint') || 
+           fullText.includes('bone') || fullText.includes('muscle')) {
+    analysis.category = 'Orthopedics';
+    analysis.recommendedDepartment = 'Orthopedics';
+  }
+
+  // Adjust severity based on mode
+  if (mode === 'emergency' && analysis.severity === 'moderate') {
+    analysis.severity = 'urgent';
+  }
+
+  console.log('🤖 Fallback analysis provided:', analysis);
+  
+  res.status(200).json({
+    success: true,
+    analysis: analysis,
+    fallback: true,
+    message: 'Analysis provided by fallback system (OpenAI not available)'
+  });
 }

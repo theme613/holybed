@@ -165,19 +165,18 @@ export default function Home() {
       name: 'Tung Shin Hospital',
       lat: 3.1478, lng: 101.6953,
       availableBeds: 12, totalBeds: 25, waitTime: 18,
-      departments: ['Emergency', 'Traditional Medicine'],
       status: 'Moderate', busyLevel: 'Medium'
     }
   ];
 
-
   const symptomTags = [
-    'Fever', 'Headache', 'Chest Pain', 'Shortness of Breath', 'Stomach Pain', 'Dizziness'
+    'Fever', 'Headache', 'Chest Pain', 'Shortness of Breath', 'Stomach Pain', 'Dizziness',
+    'Cough', 'Sore Throat', 'Weakness', 'Nausea', 'Fatigue', 'Back Pain'
   ];
 
   // Use real hospital data or fallback to mock data
-  const recommendedHospitals = hospitalData.length > 0 
-    ? hospitalData.slice(0, 3).map(hospital => ({
+  const displayHospitals = hospitalData.length > 0 
+    ? hospitalData.map(hospital => ({
         name: hospital.name,
         status: `${hospital.availableBeds} beds available • ${hospital.waitTime} wait time • ${hospital.state}`,
         color: hospital.status === 'good' ? 'green' : hospital.status === 'medium' ? 'orange' : 'red',
@@ -1257,7 +1256,7 @@ export default function Home() {
                 </div>
               </div>
               
-              {recommendedHospitals.map((hospital, index) => {
+              {displayHospitals.slice(0, 4).map((hospital, index) => {
                 const hasRecentUpdate = hospital.lastUpdated && 
                   new Date() - new Date(hospital.lastUpdated) < 5 * 60 * 1000; // Within 5 minutes
                 
@@ -1313,22 +1312,7 @@ export default function Home() {
                   </div>
                 );
               })}
-              
-              {/* Hospital Map */}
-              <div className="card">
-                <div className="section-header">
-                  <h2>KL Hospital Map</h2>
-                </div>
-                
-                <div className="hospital-map">
-                  <div className="map-placeholder">
-                    <i className="fas fa-map-marker-alt"></i>
-                    <p>Interactive Hospital Location Map</p>
-                    <small>Showing hospitals with available capacity in green</small>
-                  </div>
-                </div>
-              </div>
-              
+
               {/* Department Availability */}
               <div className="card">
                 <div className="department-tabs">

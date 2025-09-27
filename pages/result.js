@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
@@ -8,6 +8,14 @@ export default function Result() {
   const [searchData, setSearchData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savedResults, setSavedResults] = useState([]);
+  const [recommendedHospitals, setRecommendedHospitals] = useState([]);
+  const [userLocation, setUserLocation] = useState(null);
+  const [hospitalsLoading, setHospitalsLoading] = useState(false);
+  
+  // Map related state
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersRef = useRef([]);
 
   useEffect(() => {
     // Get analysis result from localStorage or router query
@@ -30,6 +38,388 @@ export default function Result() {
     
     setLoading(false);
   }, []);
+
+  // Get user location and fetch hospitals when analysis result is available
+  useEffect(() => {
+    if (analysisResult) {
+      getUserLocationAndFetchHospitals();
+    }
+  }, [analysisResult]);
+
+  // Initialize map when hospitals are loaded
+  useEffect(() => {
+    if (recommendedHospitals.length > 0 && window.google && window.google.maps) {
+      initializeMap();
+    }
+  }, [recommendedHospitals]);
+
+  // Listen for Google Maps API load
+  useEffect(() => {
+    const handleGoogleMapsLoad = () => {
+      if (recommendedHospitals.length > 0) {
+        initializeMap();
+      }
+    };
+
+    window.addEventListener('google-maps-loaded', handleGoogleMapsLoad);
+    
+    return () => {
+      window.removeEventListener('google-maps-loaded', handleGoogleMapsLoad);
+    };
+  }, [recommendedHospitals]);
+
+  const getUserLocationAndFetchHospitals = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          setUserLocation(location);
+          fetchRecommendedHospitals(analysisResult.category, analysisResult.recommendedDepartment, location);
+        },
+        (error) => {
+          console.log('Location access denied, using default KL location');
+          const defaultLocation = { lat: 3.1390, lng: 101.6869 }; // KL center
+          setUserLocation(defaultLocation);
+          fetchRecommendedHospitals(analysisResult.category, analysisResult.recommendedDepartment, defaultLocation);
+        }
+      );
+    } else {
+      const defaultLocation = { lat: 3.1390, lng: 101.6869 };
+      setUserLocation(defaultLocation);
+      fetchRecommendedHospitals(analysisResult.category, analysisResult.recommendedDepartment, defaultLocation);
+    }
+  };
+
+  const fetchRecommendedHospitals = async (category, department, location) => {
+    setHospitalsLoading(true);
+    console.log(`🏥 Starting hospital search for ${category} near location:`, location);
+
+    if (!window.google || !window.google.maps || !window.google.maps.places) {
+      console.error('❌ Google Maps API not ready');
+      setHospitalsLoading(false);
+      return;
+    }
+
+    try {
+      // Use Google Places API directly (same as emergency.js)
+      const hospitals = await searchHospitalsWithPlacesAPI(location, category, department);
+      setRecommendedHospitals(hospitals);
+      console.log(`✅ Found ${hospitals.length} hospitals for ${category}`);
+    } catch (error) {
+      console.error('Error fetching hospitals:', error);
+    } finally {
+      setHospitalsLoading(false);
+    }
+  };
+
+  // Function to search hospitals using Google Places API (same approach as emergency.js)
+  const searchHospitalsWithPlacesAPI = async (userLocation, category, department) => {
+    return new Promise((resolve) => {
+      try {
+        console.log('🔍 Initializing Places Service...');
+        
+        // Create a temporary map element for PlacesService
+        const mapDiv = document.createElement('div');
+        const map = new window.google.maps.Map(mapDiv);
+        const service = new window.google.maps.places.PlacesService(map);
+
+        // Create search query based on medical category
+        const categorySearchTerms = {
+          'Cardiovascular': 'cardiovascular hospital',
+          'Cardiology': 'cardiology hospital',
+          'Cardiac': 'cardiac hospital',
+          'Heart': 'heart hospital',
+          'Neurology': 'neurology hospital',
+          'Neurological': 'neurological hospital',
+          'Brain': 'brain hospital',
+          'Orthopedics': 'orthopedic hospital',
+          'Orthopedic': 'orthopedic hospital',
+          'Bone': 'orthopedic hospital',
+          'Surgery': 'surgery hospital',
+          'Surgical': 'surgical hospital',
+          'Emergency': 'emergency hospital',
+          'Urgent': 'emergency hospital',
+          'Oncology': 'oncology hospital',
+          'Cancer': 'cancer hospital',
+          'Pediatrics': 'pediatric hospital',
+          'Pediatric': 'pediatric hospital',
+          'Children': 'children hospital',
+          'Internal Medicine': 'internal medicine hospital',
+          'General': 'general hospital',
+          'Obstetrics': 'maternity hospital',
+          'Gynecology': 'gynecology hospital',
+          'Women': 'women hospital'
+        };
+
+        const searchQuery = categorySearchTerms[category] || 'hospital';
+        console.log(`🔍 Searching for: "${searchQuery}" near user location`);
+
+        const request = {
+          location: new window.google.maps.LatLng(userLocation.lat, userLocation.lng),
+          radius: 15000, // 15km
+          query: searchQuery // Use specific medical category search
+        };
+
+        console.log(`📡 Sending textSearch request for: "${searchQuery}"...`);
+
+        let allResults = [];
+        let pageCount = 0;
+        const maxPages = 3; // Get up to 60 results (20 per page)
+
+        const searchPage = (pageToken = null) => {
+          const pageRequest = { ...request };
+          if (pageToken) {
+            pageRequest.pageToken = pageToken;
+          }
+
+          service.textSearch(pageRequest, (results, status, pagination) => {
+            pageCount++;
+            console.log(`📥 Page ${pageCount} - Status: ${status}, Results: ${results ? results.length : 0}`);
+
+            if (status === window.google.maps.places.PlacesServiceStatus.OK && results) {
+              allResults = allResults.concat(results);
+              console.log(`📊 Total results so far: ${allResults.length}`);
+
+              // Check if there are more pages and we haven't hit our limit
+              if (pagination && pagination.hasNextPage && pageCount < maxPages) {
+                console.log('📄 Getting next page of results...');
+                setTimeout(() => {
+                  pagination.nextPage();
+                }, 2000);
+              } else {
+                // Process all results
+                console.log(`✅ Finished fetching ${allResults.length} total places`);
+                processHospitalResults(allResults, userLocation, category, department, resolve);
+              }
+            } else {
+              console.error('❌ Places API error:', status);
+              resolve([]);
+            }
+          });
+        };
+
+        // Start the search
+        searchPage();
+
+      } catch (error) {
+        console.error('💥 Exception in searchHospitalsWithPlacesAPI:', error);
+        resolve([]);
+      }
+    });
+  };
+
+  // Process and filter hospital results based on category
+  const processHospitalResults = (places, userLocation, category, department, resolve) => {
+    console.log(`🏥 Processing ${places.length} hospitals for category: ${category}`);
+
+    // Calculate distance helper function
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+      const R = 6371; // Earth's radius in km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    };
+
+    // Category matching keywords
+    const categoryKeywords = {
+      'Cardiology': ['cardiology', 'heart', 'cardiac', 'cardiovascular'],
+      'Cardiac': ['cardiology', 'heart', 'cardiac', 'cardiovascular'],
+      'Heart': ['cardiology', 'heart', 'cardiac', 'cardiovascular'],
+      'Neurology': ['neurology', 'neurological', 'brain', 'neuro', 'stroke'],
+      'Neurological': ['neurology', 'neurological', 'brain', 'neuro', 'stroke'],
+      'Brain': ['neurology', 'neurological', 'brain', 'neuro', 'stroke'],
+      'Orthopedics': ['orthopedic', 'orthopedics', 'bone', 'joint', 'spine'],
+      'Orthopedic': ['orthopedic', 'orthopedics', 'bone', 'joint', 'spine'],
+      'Bone': ['orthopedic', 'orthopedics', 'bone', 'joint', 'spine'],
+      'Surgery': ['surgery', 'surgical'],
+      'Surgical': ['surgery', 'surgical'],
+      'Emergency': ['emergency', 'urgent', 'trauma', 'general'],
+      'Urgent': ['emergency', 'urgent', 'trauma', 'general'],
+      'Oncology': ['oncology', 'cancer', 'tumor'],
+      'Cancer': ['oncology', 'cancer', 'tumor'],
+      'Pediatrics': ['pediatric', 'pediatrics', 'children', 'child'],
+      'Pediatric': ['pediatric', 'pediatrics', 'children', 'child'],
+      'Children': ['pediatric', 'pediatrics', 'children', 'child'],
+      'Internal Medicine': ['internal', 'medicine', 'general'],
+      'General': ['internal', 'medicine', 'general'],
+      'Obstetrics': ['obstetric', 'obstetrics', 'gynecology', 'women', 'maternity'],
+      'Gynecology': ['obstetric', 'obstetrics', 'gynecology', 'women', 'maternity'],
+      'Women': ['obstetric', 'obstetrics', 'gynecology', 'women', 'maternity']
+    };
+
+    const processedHospitals = places.map((place, index) => {
+      const distance = calculateDistance(
+        userLocation.lat, 
+        userLocation.lng, 
+        place.geometry.location.lat(), 
+        place.geometry.location.lng()
+      );
+
+      const hospitalName = place.name.toLowerCase();
+      
+      // Determine specialties based on hospital name and category
+      let matchedSpecialties = [category]; // Primary specialty from search
+      let specialtyScore = 3; // High score since Google found it for this category
+
+      // Check if it's a general hospital (lower specialty score)
+      if (hospitalName.includes('general') && !hospitalName.includes(category.toLowerCase())) {
+        specialtyScore = 2;
+      }
+
+      // Determine if government or private based on name patterns
+      const isGovernment = hospitalName.includes('hospital') && 
+                          (hospitalName.includes('kuala lumpur') || 
+                           hospitalName.includes('general') || 
+                           hospitalName.includes('government') ||
+                           hospitalName.includes('university') ||
+                           hospitalName.includes('kementerian'));
+
+      return {
+        id: place.place_id || `place_${index}`,
+        name: place.name,
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng(),
+        address: place.formatted_address || place.vicinity || 'Address not available',
+        phone: place.formatted_phone_number || 'Phone not available',
+        rating: place.rating || 0,
+        availableBeds: 'Contact hospital', // Real hospitals don't expose this via API
+        waitTime: 'Contact hospital', // Real hospitals don't expose this via API
+        isGovernment: isGovernment,
+        distance: parseFloat(distance.toFixed(1)),
+        matchedSpecialties: matchedSpecialties,
+        specialtyScore: specialtyScore,
+        recommendationScore: Math.max(95 - (index * 2), 70),
+        placeId: place.place_id,
+        businessStatus: place.business_status,
+        priceLevel: place.price_level,
+        userRatingsTotal: place.user_ratings_total || 0
+      };
+    });
+
+    // Sort by specialty match first, then by distance
+    const sortedHospitals = processedHospitals.sort((a, b) => {
+      if (a.specialtyScore !== b.specialtyScore) {
+        return b.specialtyScore - a.specialtyScore; // Higher specialty score first
+      }
+      return a.distance - b.distance; // Then by distance
+    });
+
+    // Limit to top 10 results
+    const finalResults = sortedHospitals.slice(0, 10);
+    
+    console.log(`🎯 Final results: ${finalResults.length} hospitals, top 3 specialized for ${category}`);
+    resolve(finalResults);
+  };
+
+  // Initialize Google Maps
+  const initializeMap = () => {
+    if (!mapRef.current || !window.google || recommendedHospitals.length === 0) return;
+
+    const map = new window.google.maps.Map(mapRef.current, {
+      center: userLocation || { lat: 3.1390, lng: 101.6869 },
+      zoom: 12,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false
+    });
+
+    mapInstanceRef.current = map;
+    addHospitalMarkers(map);
+  };
+
+  // Add hospital markers to the map
+  const addHospitalMarkers = (map) => {
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.setMap(null));
+    markersRef.current = [];
+
+    // Add user location marker if available
+    if (userLocation) {
+      const userMarker = new window.google.maps.Marker({
+        position: userLocation,
+        map: map,
+        title: 'Your Location',
+        icon: {
+          url: 'data:image/svg+xml;base64,' + btoa(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#2196f3">
+              <circle cx="12" cy="12" r="8" fill="#2196f3" stroke="white" stroke-width="2"/>
+              <circle cx="12" cy="12" r="3" fill="white"/>
+            </svg>
+          `),
+          scaledSize: new window.google.maps.Size(24, 24)
+        }
+      });
+      markersRef.current.push(userMarker);
+    }
+
+    // Add hospital markers
+    recommendedHospitals.forEach((hospital, index) => {
+      const isTopRecommended = index < 3;
+      const marker = new window.google.maps.Marker({
+        position: { lat: hospital.lat, lng: hospital.lng },
+        map: map,
+        title: hospital.name,
+        icon: {
+          url: 'data:image/svg+xml;base64,' + btoa(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="${isTopRecommended ? '#ff4444' : '#22c55e'}">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              <path d="M10 8h4v1h-1v4h-2V9h-1z" fill="white"/>
+            </svg>
+          `),
+          scaledSize: new window.google.maps.Size(32, 32)
+        }
+      });
+
+      // Create InfoWindow
+      const infoWindow = new window.google.maps.InfoWindow({
+        content: `
+          <div style="max-width: 280px; padding: 12px;">
+            <h3 style="margin: 0 0 8px 0; color: #1f2937; font-size: 16px;">${hospital.name}</h3>
+            ${isTopRecommended ? '<div style="background: #ff4444; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-bottom: 8px; display: inline-block;">TOP RECOMMENDED</div>' : ''}
+            <div style="margin-bottom: 8px;">
+              <div style="color: #22c55e; font-weight: bold; font-size: 14px;">⭐ ${hospital.rating}/5.0</div>
+              <div style="color: #6b7280; font-size: 13px;">
+                ${hospital.availableBeds} beds available • ${hospital.waitTime} wait
+              </div>
+              ${hospital.distance ? `<div style="color: #6b7280; font-size: 13px;">📍 ${hospital.distance.toFixed(1)} km away</div>` : ''}
+            </div>
+            <div style="margin-bottom: 8px;">
+              <div style="font-weight: bold; font-size: 12px; margin-bottom: 4px;">Specialties:</div>
+              <div style="font-size: 11px; color: #666;">
+                ${hospital.matchedSpecialties.join(', ')}
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
+              <span style="background: #22c55e; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">AVAILABLE</span>
+              ${hospital.isGovernment ? '<span style="background: #3b82f6; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">GOVERNMENT</span>' : '<span style="background: #8b5cf6; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">PRIVATE</span>'}
+            </div>
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+              <a href="tel:${hospital.phone}" style="color: #3b82f6; text-decoration: none; font-size: 12px;">📞 ${hospital.phone}</a>
+            </div>
+          </div>
+        `
+      });
+
+      marker.addListener('click', () => {
+        // Close all other info windows
+        markersRef.current.forEach(m => {
+          if (m.infoWindow) m.infoWindow.close();
+        });
+        
+        infoWindow.open(map, marker);
+      });
+
+      marker.infoWindow = infoWindow;
+      markersRef.current.push(marker);
+    });
+  };
 
   const saveResult = () => {
     if (!analysisResult) return;
@@ -120,6 +510,21 @@ export default function Result() {
       <Head>
         <title>Analysis Results - Symptom Finder</title>
         <meta name="description" content="Your symptom analysis results" />
+        <script
+          src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD-AGIwmIduMMKvK9xtfSyN55xUmqEBdEQ&libraries=places,marker,geometry&v=weekly&callback=initMap"
+          async
+          defer
+        ></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              function initMap() {
+                console.log('Google Maps API loaded successfully');
+                window.dispatchEvent(new Event('google-maps-loaded'));
+              }
+            `,
+          }}
+        />
       </Head>
 
       <div style={{background: 'var(--bg-primary)', minHeight: '100vh'}}>
@@ -252,7 +657,101 @@ export default function Result() {
                 borderRadius: '8px',
                 padding: '16px'
               }}>
-                <p style={{margin: 0, lineHeight: '1.6'}}>{analysisResult.recommendedAction}</p>
+                <p style={{margin: '0 0 16px 0', lineHeight: '1.6'}}>{analysisResult.recommendedAction}</p>
+                
+                {/* Top 3 Recommended Hospitals */}
+                {hospitalsLoading ? (
+                  <div style={{display: 'flex', alignItems: 'center', gap: '8px', color: '#666'}}>
+                    <i className="fas fa-spinner fa-spin"></i>
+                    <span>Finding specialized hospitals for {analysisResult.category}...</span>
+                  </div>
+                ) : recommendedHospitals.length > 0 ? (
+                  <div>
+                    <h5 style={{margin: '0 0 12px 0', color: '#1976d2', fontSize: '14px', fontWeight: '600'}}>
+                      🏥 Top 3 Recommended Hospitals for {analysisResult.category}:
+                    </h5>
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                      {recommendedHospitals.slice(0, 3).map((hospital, index) => (
+                        <div key={hospital.id} style={{
+                          background: 'white',
+                          border: '1px solid #e3f2fd',
+                          borderRadius: '6px',
+                          padding: '12px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <div style={{flex: 1}}>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px'}}>
+                              <span style={{
+                                background: index === 0 ? '#ff4444' : index === 1 ? '#ff8800' : '#ffaa00',
+                                color: 'white',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                fontWeight: 'bold'
+                              }}>
+                                #{index + 1}
+                              </span>
+                              <h6 style={{margin: 0, fontSize: '14px', fontWeight: '600', color: '#1f2937'}}>
+                                {hospital.name}
+                              </h6>
+                              <span style={{
+                                background: '#22c55e',
+                                color: 'white',
+                                padding: '1px 4px',
+                                borderRadius: '3px',
+                                fontSize: '9px',
+                                fontWeight: 'bold'
+                              }}>
+                                ⭐ {hospital.rating}
+                              </span>
+                            </div>
+                            <div style={{fontSize: '12px', color: '#666', marginBottom: '4px'}}>
+                              📍 {hospital.distance ? `${hospital.distance.toFixed(1)} km away` : 'Distance calculating...'} • 
+                              🛏️ {hospital.availableBeds} beds • ⏱️ {hospital.waitTime}
+                            </div>
+                            <div style={{fontSize: '11px', color: '#888'}}>
+                              Specialties: {hospital.matchedSpecialties.join(', ')}
+                            </div>
+                          </div>
+                          <div style={{display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end'}}>
+                            <a 
+                              href={`tel:${hospital.phone}`}
+                              style={{
+                                background: '#22c55e',
+                                color: 'white',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                textDecoration: 'none',
+                                fontSize: '11px',
+                                fontWeight: '500'
+                              }}
+                            >
+                              📞 Call Now
+                            </a>
+                            <a 
+                              href={`https://www.google.com/maps/dir/?api=1&destination=${hospital.lat},${hospital.lng}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                background: '#3b82f6',
+                                color: 'white',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                textDecoration: 'none',
+                                fontSize: '11px',
+                                fontWeight: '500'
+                              }}
+                            >
+                              🗺️ Directions
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -263,6 +762,55 @@ export default function Result() {
                 {analysisResult.urgencyExplanation}
               </p>
             </div>
+
+            {/* Hospital Map */}
+            {recommendedHospitals.length > 0 && (
+              <div style={{marginBottom: '20px'}}>
+                <h4 style={{marginBottom: '12px', color: '#495057'}}>
+                  🗺️ Specialized Hospitals Near You ({analysisResult.category})
+                </h4>
+                <div style={{
+                  background: '#f8f9fa',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  border: '1px solid #e9ecef'
+                }}>
+                  <div style={{marginBottom: '12px', fontSize: '14px', color: '#666'}}>
+                    <span style={{color: '#2196f3'}}>🔵 Your Location</span> • 
+                    <span style={{color: '#ff4444', marginLeft: '12px'}}>🔴 Top 3 Recommended</span> • 
+                    <span style={{color: '#22c55e', marginLeft: '12px'}}>🟢 Other Specialized Hospitals</span>
+                  </div>
+                  <div 
+                    ref={mapRef} 
+                    style={{ 
+                      width: '100%', 
+                      height: '400px', 
+                      borderRadius: '8px',
+                      border: '1px solid #ddd',
+                      background: '#f0f0f0'
+                    }}
+                  >
+                    {!window.google && (
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        height: '100%',
+                        color: '#666',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}>
+                        <i className="fas fa-map-marker-alt" style={{fontSize: '2rem'}}></i>
+                        <p>Loading Google Maps...</p>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{marginTop: '12px', fontSize: '12px', color: '#888'}}>
+                    Click on hospital markers to see details, ratings, and contact information.
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Original Search Data */}
             {searchData && (
