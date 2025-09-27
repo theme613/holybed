@@ -575,6 +575,17 @@ export default function Home() {
         }),
       });
 
+      // Check if response is ok and has JSON content
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        throw new Error(`Expected JSON response but got: ${contentType}. Response: ${text.substring(0, 200)}`);
+      }
+
       const result = await response.json();
       
       if (result.success) {
