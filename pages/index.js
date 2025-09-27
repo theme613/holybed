@@ -80,7 +80,7 @@ export default function Home() {
           // Update hospital list
           setHospitalData(result.data.hospitals);
           setLastUpdated(result.data.lastUpdated);
-          setNextUpdate(result.data.nextUpdate);
+          setNextUpdate(result.nextUpdate);
           setIsRealtime(result.realtime || false);
         } else {
           console.error('Failed to fetch hospital data:', result);
@@ -95,27 +95,47 @@ export default function Home() {
 
     fetchHospitalData();
     
-    // Set up auto-refresh every 30 minutes for MOH data (updates daily)
-    const refreshInterval = setInterval(fetchHospitalData, 30 * 60 * 1000);
+    // Set up auto-refresh every 30 seconds for real-time MOH data
+    const refreshInterval = setInterval(fetchHospitalData, 30 * 1000);
     
     return () => clearInterval(refreshInterval);
   }, []);
 
   // Countdown timer to next update
   useEffect(() => {
-    if (!nextUpdate || !isRealtime) return;
+    if (!nextUpdate || !isRealtime) {
+      console.log('⏰ Countdown timer not starting:', { nextUpdate, isRealtime });
+      return;
+    }
+    
+    console.log('⏰ Starting countdown timer with nextUpdate:', nextUpdate);
     
     const updateCountdown = () => {
       const now = new Date().getTime();
       const nextUpdateTime = new Date(nextUpdate).getTime();
       const secondsLeft = Math.max(0, Math.floor((nextUpdateTime - now) / 1000));
+      
+      console.log('⏰ Countdown update:', {
+        now: new Date(now).toLocaleTimeString(),
+        nextUpdateTime: new Date(nextUpdateTime).toLocaleTimeString(),
+        secondsLeft
+      });
+      
       setCountdown(secondsLeft);
+      
+      // If countdown reaches 0, trigger a refresh
+      if (secondsLeft === 0) {
+        console.log('⏰ Countdown reached 0, should refresh soon...');
+      }
     };
     
     updateCountdown(); // Initial update
     const countdownInterval = setInterval(updateCountdown, 1000);
     
-    return () => clearInterval(countdownInterval);
+    return () => {
+      console.log('⏰ Clearing countdown interval');
+      clearInterval(countdownInterval);
+    };
   }, [nextUpdate, isRealtime]);
   // Initialize map when Google Maps is ready
   useEffect(() => {
@@ -224,12 +244,12 @@ export default function Home() {
   const emergencyContacts = [
     {
       service: 'Ambulance',
-      number: '999 â€¢ 991 â€¢ 994',
+      number: '999 or 991',
       color: 'red'
     },
     {
-      service: 'Poison Control',
-      number: '1-800-88-8099',
+      service: 'Mental health',
+      number: '03-76272929',
       color: 'orange'
     }
   ];
@@ -587,6 +607,7 @@ export default function Home() {
             </div>
           </div>
         </div>
+
 
         {/* Hero Section */}
         <section className={`hero ${mode === 'emergency' ? 'emergency-mode' : 'normal-mode'}`}>
@@ -1080,25 +1101,56 @@ export default function Home() {
                   <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px'}}>
                     <div>
                       <div>Last Updated: {new Date(lastUpdated).toLocaleTimeString()}</div>
-                      <div>Auto-refresh: Every 30 minutes</div>
+                      <div>Auto-refresh: Every 30 seconds</div>
                     </div>
                     <div style={{textAlign: 'right'}}>
                       {countdown > 0 ? (
-                        <div>
+                        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px'}}>
+                          {/* Enhanced Countdown Display */}
                           <div style={{
                             background: '#22c55e',
                             color: 'white',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: 'bold',
-                            marginBottom: '4px'
+                            padding: '6px 16px',
+                            borderRadius: '6px',
+                            fontSize: '13px',
+                            fontWeight: '500',
+                            border: '1px solid #16a34a',
+                            minWidth: '160px',
+                            textAlign: 'center',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px'
                           }}>
-                            Next update in: {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
+                            <div style={{fontSize: '18px', fontFamily: 'monospace'}}>
+                              {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
+                            </div>
+                            <div style={{fontSize: '10px', opacity: 0.9, textTransform: 'uppercase', letterSpacing: '0.5px'}}>
+                              Next Update
+                            </div>
                           </div>
+                          
+                          {/* Progress Bar for Countdown */}
+                          <div style={{
+                            width: '160px',
+                            height: '4px',
+                            background: '#e5e7eb',
+                            borderRadius: '2px',
+                            overflow: 'hidden'
+                          }}>
+                            <div style={{
+                              width: `${((30 - countdown) / 30) * 100}%`, // 30 seconds
+                              height: '100%',
+                              background: 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)',
+                              borderRadius: '2px',
+                              transition: 'width 1s ease'
+                            }}></div>
+                          </div>
+                          
                           <button
                             onClick={() => {
                               setDataLoading(true);
+                              setIsRefreshing(true);
                               fetch('/api/moh-accurate-data?force=true')
                                 .then(res => res.json())
                                 .then(result => {
@@ -1135,26 +1187,71 @@ export default function Home() {
                                     setHospitalStats(newStats);
                                     setHospitalData(result.data.hospitals);
                                     setLastUpdated(result.data.lastUpdated);
-                                    setNextUpdate(result.data.nextUpdate);
+                                    setNextUpdate(result.nextUpdate);
+                                    
+                                    // Show refresh success notification
+                                    const notification = document.createElement('div');
+                                    notification.style.cssText = `
+                                      position: fixed;
+                                      top: 20px;
+                                      right: 20px;
+                                      background: #22c55e;
+                                      color: white;
+                                      padding: 12px 20px;
+                                      border-radius: 8px;
+                                      font-size: 14px;
+                                      font-weight: bold;
+                                      z-index: 10000;
+                                      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+                                    `;
+                                    notification.textContent = '✅ Data refreshed successfully!';
+                                    document.body.appendChild(notification);
+                                    setTimeout(() => document.body.removeChild(notification), 3000);
                                   }
                                 })
-                                .finally(() => setDataLoading(false));
+                                .finally(() => {
+                                  setDataLoading(false);
+                                  setIsRefreshing(false);
+                                });
                             }}
+                            disabled={isRefreshing}
                             style={{
-                              background: '#3b82f6',
+                              background: isRefreshing ? '#9ca3af' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                               color: 'white',
                               border: 'none',
-                              padding: '2px 6px',
-                              borderRadius: '3px',
-                              fontSize: '9px',
-                              cursor: 'pointer'
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              fontSize: '10px',
+                              cursor: isRefreshing ? 'not-allowed' : 'pointer',
+                              fontWeight: 'bold',
+                              boxShadow: isRefreshing ? 'none' : '0 2px 4px rgba(59, 130, 246, 0.3)',
+                              transition: 'all 0.2s ease',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
                             }}
                           >
-                            🔄 Refresh Now
+                            <span style={{
+                              display: 'inline-block',
+                              animation: isRefreshing ? 'spin 1s linear infinite' : 'none'
+                            }}>
+                              🔄
+                            </span>
+                            {isRefreshing ? 'Refreshing...' : 'Refresh Now'}
                           </button>
                         </div>
                       ) : (
-                        <div style={{color: '#f59e0b', fontWeight: 'bold'}}>Updating now...</div>
+                        <div style={{
+                          color: '#f59e0b', 
+                          fontWeight: 'bold',
+                          fontSize: '13px',
+                          padding: '8px 12px',
+                          background: '#fef3c7',
+                          borderRadius: '6px',
+                          border: '1px solid #f59e0b'
+                        }}>
+                          🔄 Updating now...
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1424,7 +1521,7 @@ export default function Home() {
                 {emergencyContacts.map((contact, index) => (
                   <div key={index} className="status-item">
                     <div className={`status-icon ${contact.color}`}>
-                      <i className={contact.service === 'Ambulance' ? 'fas fa-ambulance' : 'fas fa-phone'}></i>
+                      <i className={contact.service === 'Ambulance' ? 'fas fa-ambulance' : 'fas fa-brain'}></i>
                     </div>
                     <div className="status-info">
                       <h3>{contact.service}</h3>

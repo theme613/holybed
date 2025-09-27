@@ -135,7 +135,7 @@ const REAL_MALAYSIAN_HOSPITALS = [
 // Cache for processed data
 let accurateDataCache = null;
 let lastAccurateFetch = null;
-const ACCURATE_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+const ACCURATE_CACHE_DURATION = 30 * 1000; // 30 seconds for real-time updates
 
 function getStateUtilization(stateName) {
   const stateData = REAL_MOH_STATE_DATA.find(s => {
@@ -303,6 +303,9 @@ export default async function handler(req, res) {
       accurateDataCache = addRealisticFluctuations(accurateDataCache);
     }
     
+    // Calculate next update time (30 seconds from now)
+    const nextUpdateTime = new Date(now + ACCURATE_CACHE_DURATION);
+    
     res.status(200).json({
       success: true,
       data: accurateDataCache,
@@ -310,7 +313,8 @@ export default async function handler(req, res) {
       realtime: true,
       accurate: true,
       dataSource: 'Ministry of Health Malaysia (High Accuracy)',
-      updateFrequency: '30 minutes with live fluctuations',
+      updateFrequency: '30 seconds with live fluctuations',
+      nextUpdate: nextUpdateTime.toISOString(),
       mohBased: true,
       lastMohUpdate: '2024-09-07 01:00 AM'
     });

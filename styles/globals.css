@@ -781,3 +781,13 @@ textarea:focus {
     transform: translateZ(0) rotate(360deg);
   }
 }
+
+/* Simple spin animation for refresh icons */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

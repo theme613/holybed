@@ -38,7 +38,7 @@ const fetchNearbyHospitals = async (userLocation) => {
         location: new window.google.maps.LatLng(userLocation.lat, userLocation.lng),
         radius: 15000, // 15km
         type: 'hospital',
-        fields: ['place_id', 'name', 'geometry', 'formatted_address', 'rating', 'user_ratings_total', 'business_status', 'opening_hours']
+        fields: ['place_id', 'name', 'geometry', 'formatted_address', 'vicinity', 'rating', 'user_ratings_total', 'business_status', 'opening_hours']
       };
 
       // Note: Google Places API has a limit of 20 results per request
@@ -117,11 +117,31 @@ const fetchNearbyHospitals = async (userLocation) => {
                   return null;
                 }
 
+                // Get the best available address
+                let address = 'Address not available';
+                if (place.formatted_address) {
+                  address = place.formatted_address;
+                  console.log(`📍 ${place.name} - Using formatted_address: ${address}`);
+                } else if (place.vicinity) {
+                  address = place.vicinity;
+                  console.log(`📍 ${place.name} - Using vicinity: ${address}`);
+                } else {
+                  // Fallback: try to get address from reverse geocoding
+                  console.log(`📍 ${place.name} - No address available, will use reverse geocoding`);
+                  address = 'Getting address...';
+                  
+                  // We'll update this with reverse geocoding later
+                  // For now, use coordinates as ultimate fallback
+                  const coords = `${place.geometry.location.lat().toFixed(4)}, ${place.geometry.location.lng().toFixed(4)}`;
+                  address = `Near ${coords}`;
+                  console.log(`📍 ${place.name} - Using coordinates fallback: ${address}`);
+                }
+
                 const hospital = {
                   name: place.name,
                   lat: place.geometry.location.lat(),
                   lng: place.geometry.location.lng(),
-                  address: place.formatted_address || 'Address not available',
+                  address: address,
                   rating: place.rating || 0,
                   userRatingsTotal: place.user_ratings_total || 0,
                   isOpen: isOpen,

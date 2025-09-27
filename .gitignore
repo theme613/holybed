@@ -36,6 +36,7 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+env
 
 # API keys and secrets
 *.key
@@ -43,6 +44,47 @@ yarn-error.log*
 *-key.json
 *service-account*.json
 holybed-e18056e0d97f.json
+
+# Additional secret key patterns
+*secret*
+*SECRET*
+*apikey*
+*APIKEY*
+*api-key*
+*API-KEY*
+*token*
+*TOKEN*
+*credentials*
+*CREDENTIALS*
+*config.json
+*secrets.json
+*.secrets
+.secrets/
+
+# OpenAI and AI service keys
+openai.key
+openai-key.txt
+*openai*key*
+*OPENAI*KEY*
+
+# Google Cloud and Firebase
+*firebase*key*
+*gcp*key*
+*google*key*
+*service*account*
+
+# Database credentials
+*database*url*
+*db*url*
+*connection*string*
+
+# Third-party service keys
+*stripe*key*
+*twilio*key*
+*sendgrid*key*
+*mailgun*key*
+*aws*key*
+*azure*key*
 
 # vercel
 .vercel
