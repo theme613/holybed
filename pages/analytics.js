@@ -119,11 +119,6 @@ export default function Analytics() {
                 {analyticsData ? (
                   <>
                     Real-time data from SQLite Database • {analyticsData.totalSubmissions || 0} total submissions
-                    {analyticsData.lastUpdated && (
-                      <span style={{ fontSize: '12px', marginLeft: '8px' }}>
-                        • Updated: {new Date(analyticsData.lastUpdated).toLocaleString()}
-                      </span>
-                    )}
                   </>
                 ) : (
                   'User interactions and hospital recommendations tracking'
@@ -256,7 +251,199 @@ export default function Analytics() {
                 </div>
               )) || <p style={{ color: '#666' }}>No data available</p>}
             </div>
+
+            {/* Most Frequent Symptoms */}
+            <div style={{
+              background: 'white',
+              padding: '24px',
+              borderRadius: '12px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}>
+              <h3 style={{ margin: '0 0 16px 0', color: '#1f2937' }}>
+                🩺 Most Frequent Symptoms
+              </h3>
+              {analyticsData?.topSymptoms?.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {analyticsData.topSymptoms.map((symptom, index) => {
+                    const maxCount = analyticsData.topSymptoms[0]?.count || 1;
+                    const percentage = (symptom.count / maxCount) * 100;
+                    
+                    return (
+                      <div key={index} style={{ position: 'relative' }}>
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '4px'
+                        }}>
+                          <span style={{ 
+                            fontWeight: '600',
+                            color: '#374151',
+                            fontSize: '14px'
+                          }}>
+                            {symptom.symptom}
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ 
+                              fontSize: '12px',
+                              color: '#6b7280'
+                            }}>
+                              {((symptom.count / analyticsData.totalSubmissions) * 100).toFixed(1)}%
+                            </span>
+                            <span style={{ 
+                              fontWeight: '700',
+                              color: '#059669',
+                              fontSize: '16px'
+                            }}>
+                              {symptom.count}
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{
+                          width: '100%',
+                          height: '6px',
+                          backgroundColor: '#f3f4f6',
+                          borderRadius: '3px',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{
+                            width: `${percentage}%`,
+                            height: '100%',
+                            backgroundColor: index === 0 ? '#059669' : 
+                                           index === 1 ? '#0ea5e9' : 
+                                           index === 2 ? '#f59e0b' : '#6b7280',
+                            borderRadius: '3px',
+                            transition: 'width 0.3s ease'
+                          }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p style={{ color: '#666', textAlign: 'center', fontStyle: 'italic' }}>
+                  No symptom data available yet
+                </p>
+              )}
+            </div>
           </div>
+
+          {/* Detailed Symptom Analysis */}
+          {analyticsData?.topSymptoms?.length > 0 && (
+            <div style={{
+              background: 'white',
+              padding: '24px',
+              borderRadius: '12px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              marginBottom: '30px'
+            }}>
+              <h3 style={{ margin: '0 0 20px 0', color: '#1f2937' }}>
+                📊 Detailed Symptom Analysis
+              </h3>
+              
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '16px',
+                marginBottom: '24px'
+              }}>
+                {analyticsData.topSymptoms.map((symptom, index) => (
+                  <div key={index} style={{
+                    background: index === 0 ? '#f0fdf4' : 
+                               index === 1 ? '#eff6ff' : 
+                               index === 2 ? '#fefbf0' : '#f9fafb',
+                    border: `2px solid ${
+                      index === 0 ? '#22c55e' : 
+                      index === 1 ? '#3b82f6' : 
+                      index === 2 ? '#f59e0b' : '#6b7280'
+                    }`,
+                    borderRadius: '8px',
+                    padding: '16px',
+                    textAlign: 'center',
+                    position: 'relative'
+                  }}>
+                    {index === 0 && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '-8px',
+                        right: '-8px',
+                        background: '#22c55e',
+                        color: 'white',
+                        borderRadius: '50%',
+                        width: '24px',
+                        height: '24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '12px',
+                        fontWeight: 'bold'
+                      }}>
+                        #1
+                      </div>
+                    )}
+                    <div style={{
+                      fontSize: '24px',
+                      fontWeight: 'bold',
+                      color: index === 0 ? '#059669' : 
+                             index === 1 ? '#2563eb' : 
+                             index === 2 ? '#d97706' : '#374151',
+                      marginBottom: '8px'
+                    }}>
+                      {symptom.count}
+                    </div>
+                    <div style={{
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#374151',
+                      marginBottom: '4px'
+                    }}>
+                      {symptom.symptom}
+                    </div>
+                    <div style={{
+                      fontSize: '12px',
+                      color: '#6b7280'
+                    }}>
+                      {((symptom.count / analyticsData.totalSubmissions) * 100).toFixed(1)}% of cases
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Symptom Insights */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                padding: '16px'
+              }}>
+                <h4 style={{ 
+                  margin: '0 0 12px 0', 
+                  color: '#1f2937',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  💡 Symptom Insights
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#4b5563' }}>
+                    <strong>Most Common:</strong> {analyticsData.topSymptoms[0]?.symptom} 
+                    ({analyticsData.topSymptoms[0]?.count} cases, {((analyticsData.topSymptoms[0]?.count / analyticsData.totalSubmissions) * 100).toFixed(1)}%)
+                  </p>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#4b5563' }}>
+                    <strong>Total Unique Symptoms:</strong> {analyticsData.topSymptoms.length} different types
+                  </p>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#4b5563' }}>
+                    <strong>Coverage:</strong> Top 3 symptoms represent {
+                      analyticsData.topSymptoms.slice(0, 3).reduce((sum, s) => sum + s.count, 0)
+                    } out of {analyticsData.totalSubmissions} total cases 
+                    ({(analyticsData.topSymptoms.slice(0, 3).reduce((sum, s) => sum + s.count, 0) / analyticsData.totalSubmissions * 100).toFixed(1)}%)
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Top Hospitals */}
           <div style={{
