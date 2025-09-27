@@ -72,7 +72,7 @@ export default function Analytics() {
           <h2 style={{ color: '#dc3545' }}>Analytics Error</h2>
           <p>{error}</p>
           <p style={{ fontSize: '14px', color: '#666', marginTop: '20px' }}>
-            Make sure your MySQL database is set up and running.
+            The SQLite database may not be initialized yet. Try using the app first to generate some data.
           </p>
           <button 
             onClick={() => router.push('/')}
@@ -116,28 +116,88 @@ export default function Analytics() {
                 📊 Analytics Dashboard
               </h1>
               <p style={{ margin: '4px 0 0 0', color: '#666' }}>
-                User interactions and hospital recommendations tracking
+                {analyticsData ? (
+                  <>
+                    Real-time data from SQLite Database • {analyticsData.totalSubmissions || 0} total submissions
+                    {analyticsData.lastUpdated && (
+                      <span style={{ fontSize: '12px', marginLeft: '8px' }}>
+                        • Updated: {new Date(analyticsData.lastUpdated).toLocaleString()}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  'User interactions and hospital recommendations tracking'
+                )}
               </p>
             </div>
-            <button 
-              onClick={() => router.push('/')}
-              style={{
-                padding: '10px 20px',
-                background: '#f8f9fa',
-                border: '1px solid #dee2e6',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              ← Back to Home
-            </button>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                onClick={fetchAnalyticsData}
+                disabled={loading}
+                style={{
+                  padding: '10px 20px',
+                  background: '#22c55e',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  opacity: loading ? 0.6 : 1
+                }}
+              >
+                🔄 {loading ? 'Refreshing...' : 'Refresh Data'}
+              </button>
+              <button 
+                onClick={() => router.push('/')}
+                style={{
+                  padding: '10px 20px',
+                  background: '#f8f9fa',
+                  border: '1px solid #dee2e6',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                ← Back to Home
+              </button>
+            </div>
           </div>
         </header>
 
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          {/* Database Status Card */}
+          <div style={{
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '12px',
+            marginBottom: '24px',
+            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '18px' }}>
+                  🗄️ SQLite Database Status
+                </h3>
+                <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>
+                  Database is active and storing real user interactions
+                </p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '4px' }}>
+                  {analyticsData?.totalSubmissions || 0}
+                </div>
+                <div style={{ fontSize: '12px', opacity: 0.9 }}>
+                  Total Records
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Stats Grid */}
           <div style={{
             display: 'grid',
