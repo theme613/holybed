@@ -498,6 +498,25 @@ export default function Home() {
         localStorage.setItem('preventiveAnalysis', JSON.stringify(result.preventiveAnalysis));
         localStorage.setItem('preventiveAnalysisTimestamp', new Date().toISOString());
         
+        // Also save to database via save-interaction API
+        try {
+          await fetch('/api/save-interaction', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              symptoms: symptoms.trim(),
+              mode: mode,
+              preventiveAnalysis: result.preventiveAnalysis,
+              uploadedFiles: pdfFile ? [pdfFile.name] : null
+            }),
+          });
+          console.log('✅ Preventive analysis saved to database');
+        } catch (dbError) {
+          console.log('⚠️ Could not save to database:', dbError.message);
+        }
+        
         // Show success notification
         const notification = document.createElement('div');
         notification.style.cssText = `

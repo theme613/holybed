@@ -127,6 +127,19 @@ Respond ONLY with valid JSON, no additional text.`;
         throw new Error('Invalid preventive analysis response structure');
       }
 
+      // Also save to database if we have a submission ID
+      const submissionId = req.body.submissionId;
+      if (submissionId) {
+        try {
+          const { savePreventiveAnalysis, initializeDatabase } = require('../../lib/sqlite-database.js');
+          initializeDatabase();
+          const preventiveId = savePreventiveAnalysis(submissionId, preventiveAnalysis);
+          console.log('✅ Preventive analysis saved to database with ID:', preventiveId);
+        } catch (dbError) {
+          console.log('⚠️ Could not save to database (non-critical):', dbError.message);
+        }
+      }
+
       res.status(200).json({
         success: true,
         preventiveAnalysis: preventiveAnalysis,

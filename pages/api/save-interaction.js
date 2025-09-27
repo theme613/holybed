@@ -1,5 +1,11 @@
 // API endpoint to save user interactions and hospital recommendations
-// Database functionality temporarily disabled - using console logging instead
+const { 
+  saveUserSubmission, 
+  saveAIAnalysis, 
+  saveHospitalRecommendations,
+  savePreventiveAnalysis,
+  initializeDatabase 
+} = require('../../lib/sqlite-database.js');
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -7,13 +13,17 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Initialize database
+    initializeDatabase();
+
     const { 
       symptoms, 
       mode, 
       uploadedFiles, 
       userLocation, 
       analysisResult, 
-      hospitalRecommendations 
+      hospitalRecommendations,
+      preventiveAnalysis
     } = req.body;
 
     // Validate required fields
@@ -21,34 +31,58 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields: symptoms and mode' });
     }
 
-    // Log interaction for debugging (replace database functionality)
-    console.log('📝 User interaction logged:', {
-      timestamp: new Date().toISOString(),
-      symptoms: symptoms.substring(0, 100) + (symptoms.length > 100 ? '...' : ''),
+    // Get client info
+    const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+
+    console.log('📝 Saving user interaction to SQLite database:', { 
+      symptoms: symptoms.substring(0, 50) + '...', 
       mode,
-      hasUploadedFiles: uploadedFiles && uploadedFiles.length > 0,
-      hasLocation: !!userLocation,
-      hasAnalysisResult: !!analysisResult,
-      hospitalRecommendationsCount: hospitalRecommendations ? hospitalRecommendations.length : 0
+      hasAnalysis: !!analysisResult,
+      hasPreventive: !!preventiveAnalysis
     });
 
-    // Generate mock IDs for compatibility
-    const submissionId = 'mock_' + Date.now();
-    const analysisId = analysisResult ? 'analysis_' + Date.now() : null;
+    // Step 1: Save user submission
+    const submissionId = saveUserSubmission({
+      symptoms,
+      mode,
+      uploadedFiles,
+      userLocation,
+      ipAddress: clientIP,
+      userAgent
+    });
 
-    console.log('✅ User interaction logged successfully (database disabled)');
+    // Step 2: Save AI analysis if provided
+    let analysisId = null;
+    if (analysisResult) {
+      analysisId = saveAIAnalysis(submissionId, analysisResult);
+    }
+
+    // Step 3: Save hospital recommendations if provided
+    if (hospitalRecommendations && hospitalRecommendations.length > 0) {
+      saveHospitalRecommendations(submissionId, hospitalRecommendations);
+    }
+
+    // Step 4: Save preventive analysis if provided
+    let preventiveId = null;
+    if (preventiveAnalysis) {
+      preventiveId = savePreventiveAnalysis(submissionId, preventiveAnalysis);
+    }
+
+    console.log('✅ User interaction saved successfully to database');
 
     res.status(200).json({
       success: true,
       submissionId,
       analysisId,
-      message: 'Interaction logged successfully (database functionality disabled)'
+      preventiveId,
+      message: 'Interaction saved successfully to SQLite database'
     });
 
   } catch (error) {
-    console.error('❌ Error logging interaction:', error);
+    console.error('❌ Error saving interaction:', error);
     res.status(500).json({ 
-      error: 'Failed to log interaction',
+      error: 'Failed to save interaction',
       details: error.message 
     });
   }

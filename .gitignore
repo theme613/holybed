@@ -159,6 +159,11 @@ jspm_packages/
 tmp/
 temp/
 
+# Database files
+data/
+*.db
+*.db-*
+
 # Allow important JSON config files but exclude sensitive ones
 package-lock.json
 !package.json
