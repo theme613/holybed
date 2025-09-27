@@ -679,10 +679,22 @@ footer {
 
 /* File Upload Hover Effects */
 label[for="pdf-upload"]:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.2) !important;
   border-color: var(--accent) !important;
-  background: rgba(59, 130, 246, 0.05) !important;
+  background: rgba(59, 130, 246, 0.08) !important;
+}
+
+/* Button Hover Effects */
+#search-btn:hover:not(:disabled) {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4) !important;
+}
+
+/* Input Focus Effects */
+textarea:focus {
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15) !important;
+  transform: translateY(-1px);
 }
 
 /* Improved Upload Section */
