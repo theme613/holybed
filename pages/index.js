@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
@@ -1013,7 +1013,7 @@ export default function Home() {
             </div>
             
             <div className="copyright">
-              <p>&copy; 2023 Holy bed. All rights reserved.</p>
+              <p>&copy; 2025 Holy bed. All rights reserved.</p>
             </div>
           </div>
         </footer>
