@@ -3,8 +3,13 @@ import Head from 'next/head';
 
 export default function Home() {
   const [symptoms, setSymptoms] = useState('');
+  const [description, setDescription] = useState('');
   const [activeTab, setActiveTab] = useState('emergency');
   const [mode, setMode] = useState('emergency'); // 'emergency' or 'normal'
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfContent, setPdfContent] = useState('');
   const [hospitalStats] = useState({
     hospitalsOnline: 28,
     availableBeds: 156,
@@ -74,12 +79,77 @@ export default function Home() {
     setSymptoms(tag);
   };
 
-  const handleFindHelp = () => {
-    const searchQuery = symptoms.trim();
-    if (searchQuery !== '') {
-      console.log('Searching for help with:', searchQuery);
-      alert(`Searching for hospitals that can help with: ${searchQuery}`);
+  const handlePdfUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setPdfFile(file);
+    setIsAnalyzing(true);
+
+    const formData = new FormData();
+    formData.append('pdf', file);
+
+    try {
+      const response = await fetch('/api/upload-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setPdfContent(result.text);
+        console.log('PDF content extracted:', result.text.substring(0, 200) + '...');
+      } else {
+        alert('Failed to extract text from PDF: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Error uploading PDF:', error);
+      alert('Error uploading PDF');
+    } finally {
+      setIsAnalyzing(false);
     }
+  };
+
+  const analyzeSymptoms = async () => {
+    if (!symptoms.trim() && !pdfContent) {
+      alert('Please describe your symptoms or upload a medical document');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalysisResult(null);
+
+    try {
+      const response = await fetch('/api/analyze-symptoms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          symptoms: symptoms.trim(),
+          description: '', // No separate description field now
+          pdfContent: pdfContent,
+          mode: mode
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setAnalysisResult(result.analysis);
+      } else {
+        alert('Analysis failed: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Error analyzing symptoms:', error);
+      alert('Error analyzing symptoms');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleFindHelp = () => {
+    analyzeSymptoms();
   };
 
   const handleTabClick = (tabId) => {
@@ -144,28 +214,253 @@ export default function Home() {
             <p>{mode === 'emergency' ? 'URGENT: Describe your emergency symptoms for immediate medical attention' : 'Describe how you\'re feeling and we\'ll help you find the right hospital with available capacity'}</p>
             
             <div className="search-box">
-              <div className="search-input-container">
-                <input 
-                  type="text" 
-                  id="symptom-input" 
-                  placeholder="Describe your symptoms (e.g., headache, fever, chest pain...)"
+              <div className="input-with-button-container" style={{
+                display: 'flex',
+                gap: '15px',
+                marginBottom: '20px',
+                alignItems: 'flex-start'
+              }}>
+                <textarea 
+                  placeholder={mode === 'emergency' 
+                    ? "URGENT: Describe your emergency symptoms in detail (e.g., chest pain for 2 hours, difficulty breathing, medical history...)" 
+                    : "Describe your symptoms and condition in detail (e.g., headache for 3 days, fever 101°F, took aspirin, medical history...)"}
                   value={symptoms}
                   onChange={(e) => setSymptoms(e.target.value)}
+                  style={{
+                    flex: '1',
+                    minHeight: '120px',
+                    padding: '15px',
+                    border: '2px solid #e0e0e0',
+                    borderRadius: '12px',
+                    fontSize: '16px',
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                    lineHeight: '1.5'
+                  }}
                 />
-                <button id="search-btn" onClick={handleFindHelp}>
-                  <i className="fas fa-search"></i> Find Help
+                <button id="search-btn" onClick={handleFindHelp} disabled={isAnalyzing} style={{
+                  minWidth: '100px',
+                  height: '56px',
+                  padding: '12px 16px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+                  background: mode === 'emergency' ? '#ff4444' : '#007bff',
+                  color: 'white',
+                  transition: 'all 0.3s ease',
+                  opacity: isAnalyzing ? 0.7 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  alignSelf: 'flex-start',
+                  marginTop: '15px'
+                }}>
+                  <i className={`fas ${isAnalyzing ? 'fa-spinner fa-spin' : 'fa-search'}`} style={{fontSize: '14px'}}></i> 
+                  <span>{isAnalyzing ? 'Analyzing...' : 'Find Help'}</span>
                 </button>
               </div>
-              <div className="symptom-suggestions">
+              
+              <div className="symptom-suggestions" style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                gap: '10px',
+                marginBottom: '25px',
+                padding: '0 20px'
+              }}>
                 {symptomTags.map((tag) => (
-                  <button key={tag} className="symptom-tag" onClick={() => handleTagClick(tag)}>
+                  <button key={tag} className="symptom-tag" onClick={() => handleTagClick(tag)} style={{
+                    padding: '10px 18px',
+                    backgroundColor: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '24px',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    color: '#475569',
+                    fontWeight: '500',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+                  }}>
                     {tag}
                   </button>
                 ))}
               </div>
+                
+              <div className="file-upload-section" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '15px'
+              }}>
+                <label htmlFor="pdf-upload" style={{
+                  display: 'block',
+                  width: '100%',
+                  maxWidth: '600px',
+                  padding: '20px 24px',
+                  background: mode === 'emergency' ? '#fef2f2' : '#f8fafc',
+                  border: mode === 'emergency' ? '2px dashed #f87171' : '2px dashed #3b82f6',
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                  fontSize: '15px',
+                  color: mode === 'emergency' ? '#dc2626' : '#1e40af',
+                  transition: 'all 0.3s ease',
+                  textAlign: 'center',
+                  fontWeight: '500',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                }}>
+                  <i className="fas fa-file-pdf" style={{marginRight: '10px', fontSize: '18px'}}></i>
+                  {mode === 'emergency' 
+                    ? 'Upload Emergency Medical Records' 
+                    : 'Upload Medical Documents (Lab Results, Reports, etc.)'}
+                </label>
+                <input 
+                  type="file" 
+                  id="pdf-upload"
+                  accept=".pdf"
+                  onChange={handlePdfUpload}
+                  style={{display: 'none'}}
+                />
+                
+                {pdfFile && (
+                  <div style={{
+                    fontSize: '14px', 
+                    color: '#16a34a',
+                    background: '#f0fdf4',
+                    padding: '10px 20px',
+                    borderRadius: '30px',
+                    border: '1px solid #22c55e',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+                  }}>
+                    <i className="fas fa-check-circle" style={{color: '#22c55e'}}></i>
+                    {pdfFile.name} uploaded successfully
+                  </div>
+                )}
+                
+                {mode === 'normal' && (
+                  <div style={{
+                    textAlign: 'center',
+                    maxWidth: '600px',
+                    marginTop: '12px'
+                  }}>
+                    <div style={{
+                      fontSize: '14px',
+                      color: '#64748b',
+                      fontStyle: 'italic',
+                      marginBottom: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}>
+                      <i className="fas fa-info-circle"></i>
+                      Upload lab results, medical reports, or prescription details for more accurate analysis
+                    </div>
+                    <div style={{
+                      fontSize: '13px',
+                      color: '#94a3b8',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      justifyContent: 'center',
+                      gap: '12px'
+                    }}>
+                      <span>📋 Blood tests</span>
+                      <span>🩺 Doctor reports</span>
+                      <span>💊 Prescriptions</span>
+                      <span>🔬 Lab results</span>
+                      <span>📊 Medical charts</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </section>
+
+        {/* AI Analysis Results */}
+        {analysisResult && (
+          <div className="container" style={{marginTop: '20px'}}>
+            <div className={`analysis-results card ${analysisResult.severity}`} style={{
+              padding: '20px',
+              marginBottom: '20px',
+              borderLeft: `5px solid ${
+                analysisResult.severity === 'emergency' ? '#ff4444' :
+                analysisResult.severity === 'urgent' ? '#ff8800' :
+                analysisResult.severity === 'moderate' ? '#ffaa00' : '#4CAF50'
+              }`
+            }}>
+              <h2 style={{
+                color: analysisResult.severity === 'emergency' ? '#ff4444' :
+                       analysisResult.severity === 'urgent' ? '#ff8800' :
+                       analysisResult.severity === 'moderate' ? '#ffaa00' : '#4CAF50',
+                marginBottom: '15px'
+              }}>
+                <i className={`fas ${
+                  analysisResult.severity === 'emergency' ? 'fa-exclamation-triangle' :
+                  analysisResult.severity === 'urgent' ? 'fa-clock' :
+                  analysisResult.severity === 'moderate' ? 'fa-info-circle' : 'fa-check-circle'
+                }`}></i>
+                {' '}Analysis Results - {analysisResult.severity.toUpperCase()} Priority
+              </h2>
+              
+              <div className="analysis-grid" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '15px'}}>
+                <div>
+                  <h4>Category:</h4>
+                  <p>{analysisResult.category}</p>
+                </div>
+                <div>
+                  <h4>Recommended Department:</h4>
+                  <p>{analysisResult.recommendedDepartment}</p>
+                </div>
+                <div>
+                  <h4>Estimated Wait Time:</h4>
+                  <p>{analysisResult.estimatedWaitTime}</p>
+                </div>
+                <div>
+                  <h4>Urgency Level:</h4>
+                  <p style={{
+                    color: analysisResult.severity === 'emergency' ? '#ff4444' :
+                           analysisResult.severity === 'urgent' ? '#ff8800' :
+                           analysisResult.severity === 'moderate' ? '#ffaa00' : '#4CAF50',
+                    fontWeight: 'bold'
+                  }}>{analysisResult.severity}</p>
+                </div>
+              </div>
+              
+              <div style={{marginBottom: '15px'}}>
+                <h4>Recommended Action:</h4>
+                <p>{analysisResult.recommendedAction}</p>
+              </div>
+              
+              <div>
+                <h4>Explanation:</h4>
+                <p>{analysisResult.urgencyExplanation}</p>
+              </div>
+              
+              {analysisResult.severity === 'emergency' && (
+                <div className="emergency-warning" style={{
+                  background: '#ffebee',
+                  border: '2px solid #ff4444',
+                  borderRadius: '8px',
+                  padding: '15px',
+                  marginTop: '15px'
+                }}>
+                  <h4 style={{color: '#ff4444', marginBottom: '10px'}}>
+                    <i className="fas fa-ambulance"></i> EMERGENCY ALERT
+                  </h4>
+                  <p style={{color: '#d32f2f'}}>
+                    This appears to be a medical emergency. Please call 999 immediately or go to the nearest emergency room.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Main Content */}
         <div className="container">
