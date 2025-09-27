@@ -669,6 +669,61 @@ footer {
   }
 }
 
+/* Enhanced Button Styles */
+.symptom-tag:hover {
+  background: var(--accent) !important;
+  color: white !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+/* File Upload Hover Effects */
+label[for="pdf-upload"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: var(--accent) !important;
+  background: rgba(59, 130, 246, 0.05) !important;
+}
+
+/* Improved Upload Section */
+.file-upload-section {
+  transition: all 0.3s ease;
+}
+
+/* Better spacing for mobile */
+@media (max-width: 600px) {
+  .file-upload-section label {
+    padding: 14px 18px !important;
+    font-size: 14px !important;
+  }
+  
+  .symptom-suggestions {
+    padding: 0 10px !important;
+  }
+  
+  /* Stack input and button vertically on mobile */
+  .input-with-button-container {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  
+  .input-with-button-container button {
+    height: 48px !important;
+    min-width: auto !important;
+    width: 100% !important;
+    margin-top: 0 !important;
+    align-self: stretch !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Adjust button size for tablets */
+  .input-with-button-container button {
+    min-width: 90px !important;
+    height: 52px !important;
+  }
+}
+
 /* Animation definitions */
 :root {
   --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite
