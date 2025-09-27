@@ -4,6 +4,7 @@ import Head from 'next/head';
 export default function Home() {
   const [symptoms, setSymptoms] = useState('');
   const [activeTab, setActiveTab] = useState('emergency');
+  const [mode, setMode] = useState('emergency'); // 'emergency' or 'normal'
   const [hospitalStats] = useState({
     hospitalsOnline: 28,
     availableBeds: 156,
@@ -116,11 +117,31 @@ export default function Home() {
           </div>
         </header>
 
+        {/* Mode Toggle */}
+        <div className="mode-toggle-container">
+          <div className="container">
+            <div className="mode-toggle">
+              <button 
+                className={`mode-btn ${mode === 'emergency' ? 'active emergency' : ''}`}
+                onClick={() => setMode('emergency')}
+              >
+                emergency
+              </button>
+              <button 
+                className={`mode-btn ${mode === 'normal' ? 'active normal' : ''}`}
+                onClick={() => setMode('normal')}
+              >
+                normal
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Hero Section */}
-        <section className="hero">
+        <section className={`hero ${mode === 'emergency' ? 'emergency-mode' : 'normal-mode'}`}>
           <div className="container">
             <h2>What symptoms are you experiencing?</h2>
-            <p>Describe how you're feeling and we'll help you find the right hospital with available capacity</p>
+            <p>{mode === 'emergency' ? 'URGENT: Describe your emergency symptoms for immediate medical attention' : 'Describe how you\'re feeling and we\'ll help you find the right hospital with available capacity'}</p>
             
             <div className="search-box">
               <div className="search-input-container">
