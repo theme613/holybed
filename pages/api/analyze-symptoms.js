@@ -85,10 +85,27 @@ Respond ONLY with valid JSON, no additional text.`;
 
   } catch (error) {
     console.error('Error analyzing symptoms:', error);
-    res.status(500).json({ 
+    
+    // Better error handling for different types of errors
+    let errorMessage = 'Error analyzing symptoms';
+    let statusCode = 500;
+    
+    if (error.message.includes('API key')) {
+      errorMessage = 'OpenAI API key not configured properly';
+      statusCode = 401;
+    } else if (error.message.includes('insufficient_quota')) {
+      errorMessage = 'OpenAI API quota exceeded';
+      statusCode = 429;
+    } else if (error.message.includes('model_not_found')) {
+      errorMessage = 'OpenAI model not available';
+      statusCode = 400;
+    }
+    
+    res.status(statusCode).json({ 
       success: false, 
-      message: 'Error analyzing symptoms',
-      error: error.message 
+      message: errorMessage,
+      error: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 }

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 
 export default function Home() {
+  const router = useRouter();
   const [symptoms, setSymptoms] = useState('');
   const [description, setDescription] = useState('');
   const [activeTab, setActiveTab] = useState('emergency');
@@ -137,12 +139,36 @@ export default function Home() {
       
       if (result.success) {
         setAnalysisResult(result.analysis);
+        
+        // Store the analysis result and search data in localStorage
+        localStorage.setItem('latestAnalysis', JSON.stringify(result.analysis));
+        localStorage.setItem('searchData', JSON.stringify({
+          symptoms: symptoms.trim(),
+          mode: mode,
+          pdfContent: pdfContent,
+          timestamp: new Date().toISOString()
+        }));
+        
+        // Navigate to results page
+        router.push('/result');
       } else {
-        alert('Analysis failed: ' + result.message);
+        // Better error handling
+        if (result.error && result.error.includes('API key')) {
+          alert('⚠️ OpenAI API key not configured properly. Please check your .env.local file and ensure OPENAI_API_KEY is set with your actual API key.');
+        } else if (result.error && result.error.includes('insufficient_quota')) {
+          alert('⚠️ OpenAI API quota exceeded. Please check your OpenAI account billing.');
+        } else {
+          alert('❌ Analysis failed: ' + (result.message || 'Unknown error'));
+        }
+        console.error('Analysis error:', result);
       }
     } catch (error) {
       console.error('Error analyzing symptoms:', error);
-      alert('Error analyzing symptoms');
+      if (error.message.includes('Failed to fetch')) {
+        alert('🔌 Network error: Unable to connect to analysis service. Please check your internet connection.');
+      } else {
+        alert('❌ Error analyzing symptoms: ' + error.message);
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -181,6 +207,26 @@ export default function Home() {
                   <li><a href="#">Symptoms</a></li>
                   <li><a href="#">Emergency</a></li>
                   <li><a href="#">Health Tips</a></li>
+                  <li>
+                    <button 
+                      onClick={() => router.push('/result')}
+                      style={{
+                        background: 'none',
+                        border: '1px solid #007bff',
+                        color: '#007bff',
+                        padding: '6px 12px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <i className="fas fa-history"></i>
+                      Results
+                    </button>
+                  </li>
                 </ul>
               </nav>
             </div>
