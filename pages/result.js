@@ -46,6 +46,13 @@ export default function Result() {
     }
   }, [analysisResult]);
 
+  // Save user interaction when hospitals are loaded
+  useEffect(() => {
+    if (analysisResult && recommendedHospitals.length > 0 && userLocation) {
+      saveUserInteractionToDatabase();
+    }
+  }, [analysisResult, recommendedHospitals, userLocation]);
+
   // Initialize map when hospitals are loaded
   useEffect(() => {
     if (recommendedHospitals.length > 0 && window.google && window.google.maps) {
@@ -335,6 +342,37 @@ export default function Result() {
   };
 
   // Add hospital markers to the map
+  // Save user interaction to MySQL database
+  const saveUserInteractionToDatabase = async () => {
+    try {
+      const interactionData = {
+        symptoms: searchData?.symptoms || 'Symptom analysis',
+        mode: 'normal',
+        uploadedFiles: searchData?.uploadedFiles || [],
+        userLocation: userLocation,
+        analysisResult: analysisResult,
+        hospitalRecommendations: recommendedHospitals
+      };
+
+      const response = await fetch('/api/save-interaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(interactionData)
+      });
+
+      if (response.ok) {
+        console.log('✅ User interaction saved to database');
+      } else {
+        console.log('⚠️ Failed to save interaction to database');
+      }
+    } catch (error) {
+      console.error('❌ Error saving interaction:', error);
+      // Don't block the user experience if database save fails
+    }
+  };
+
   const addHospitalMarkers = (map) => {
     // Clear existing markers
     markersRef.current.forEach(marker => marker.setMap(null));
