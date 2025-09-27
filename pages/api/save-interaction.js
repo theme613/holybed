@@ -1,10 +1,5 @@
 // API endpoint to save user interactions and hospital recommendations
-const { 
-  saveUserSubmission, 
-  saveAIAnalysis, 
-  saveHospitalRecommendations,
-  initializeDatabase 
-} = require('../../lib/database.js');
+// Database functionality temporarily disabled - using console logging instead
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -12,9 +7,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Initialize database tables if they don't exist
-    await initializeDatabase();
-
     const { 
       symptoms, 
       mode, 
@@ -29,40 +21,34 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields: symptoms and mode' });
     }
 
-    console.log('📝 Saving user interaction:', { symptoms: symptoms.substring(0, 50) + '...', mode });
-
-    // Step 1: Save user submission
-    const submissionId = await saveUserSubmission({
-      symptoms,
+    // Log interaction for debugging (replace database functionality)
+    console.log('📝 User interaction logged:', {
+      timestamp: new Date().toISOString(),
+      symptoms: symptoms.substring(0, 100) + (symptoms.length > 100 ? '...' : ''),
       mode,
-      uploadedFiles,
-      userLocation
+      hasUploadedFiles: uploadedFiles && uploadedFiles.length > 0,
+      hasLocation: !!userLocation,
+      hasAnalysisResult: !!analysisResult,
+      hospitalRecommendationsCount: hospitalRecommendations ? hospitalRecommendations.length : 0
     });
 
-    // Step 2: Save AI analysis if provided
-    let analysisId = null;
-    if (analysisResult) {
-      analysisId = await saveAIAnalysis(submissionId, analysisResult);
-    }
+    // Generate mock IDs for compatibility
+    const submissionId = 'mock_' + Date.now();
+    const analysisId = analysisResult ? 'analysis_' + Date.now() : null;
 
-    // Step 3: Save hospital recommendations if provided
-    if (hospitalRecommendations && hospitalRecommendations.length > 0) {
-      await saveHospitalRecommendations(submissionId, hospitalRecommendations);
-    }
-
-    console.log('✅ User interaction saved successfully');
+    console.log('✅ User interaction logged successfully (database disabled)');
 
     res.status(200).json({
       success: true,
       submissionId,
       analysisId,
-      message: 'Interaction saved successfully'
+      message: 'Interaction logged successfully (database functionality disabled)'
     });
 
   } catch (error) {
-    console.error('❌ Error saving interaction:', error);
+    console.error('❌ Error logging interaction:', error);
     res.status(500).json({ 
-      error: 'Failed to save interaction',
+      error: 'Failed to log interaction',
       details: error.message 
     });
   }
