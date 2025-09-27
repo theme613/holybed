@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
@@ -20,20 +20,25 @@ export default function Home() {
   });
   const [hospitalData, setHospitalData] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState(null);
   const [nextUpdate, setNextUpdate] = useState(null);
   const [isRealtime, setIsRealtime] = useState(false);
-  const [countdown, setCountdown] = useState(0);
+  const [countdown, setCountdown] = useState(15);
   const [dataChanges, setDataChanges] = useState([]);
   const [previousStats, setPreviousStats] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(new Date().toISOString());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Map related state
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersRef = useRef([]);
 
-  // Fetch real-time hospital data
   useEffect(() => {
     const fetchHospitalData = async () => {
       try {
         setIsRefreshing(true);
         setDataLoading(true);
+        
         const response = await fetch('/api/realtime-hospital-data');
         const result = await response.json();
         
@@ -106,6 +111,13 @@ export default function Home() {
     
     return () => clearInterval(countdownInterval);
   }, [nextUpdate, isRealtime]);
+  // Initialize map when Google Maps is ready
+  useEffect(() => {
+    if (window.google && window.google.maps) {
+      initializeMap();
+    }
+  }, [hospitalData]);
+
 
   const allHospitals = [
     {
@@ -221,7 +233,9 @@ export default function Home() {
     { name: 'Emergency Assistance', icon: 'fas fa-ambulance' },
     { name: 'Book Appointment', icon: 'fas fa-calendar-check' },
     { name: 'Get Directions', icon: 'fas fa-directions' }
-  ];  // Calculate distance between two coordinates (Haversine formula)
+  ];
+
+  // Calculate distance between two coordinates (Haversine formula)
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371; // Earth's radius in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -231,6 +245,91 @@ export default function Home() {
               Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
+  };
+
+
+  // Initialize Google Maps
+  const initializeMap = () => {
+    if (!mapRef.current || !window.google) return;
+
+    const klCenter = { lat: 3.1390, lng: 101.6869 }; // KL center
+    
+    const map = new window.google.maps.Map(mapRef.current, {
+      center: klCenter,
+      zoom: 11,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
+      styles: [
+        {
+          featureType: 'poi.medical',
+          elementType: 'geometry',
+          stylers: [{ color: '#22c55e' }]
+        }
+      ]
+    });
+
+    mapInstanceRef.current = map;
+    addHospitalMarkers(map);
+  };
+
+  // Add hospital markers to the map
+  const addHospitalMarkers = (map) => {
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.setMap(null));
+    markersRef.current = [];
+
+    // Use real hospital data if available, otherwise use mock data
+    const hospitalsToShow = hospitalData.length > 0 ? hospitalData : allHospitals;
+
+    hospitalsToShow.forEach((hospital, index) => {
+      const marker = new window.google.maps.Marker({
+        position: { lat: hospital.lat, lng: hospital.lng },
+        map: map,
+        title: hospital.name,
+        icon: {
+          url: 'data:image/svg+xml;base64,' + btoa(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="#22c55e">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              <path d="M10 8h4v1h-1v4h-2V9h-1z" fill="white"/>
+            </svg>
+          `),
+          scaledSize: new window.google.maps.Size(32, 32)
+        }
+      });
+
+      // Create InfoWindow for each hospital
+      const infoWindow = new window.google.maps.InfoWindow({
+        content: `
+          <div style="max-width: 250px; padding: 12px;">
+            <h3 style="margin: 0 0 8px 0; color: #1f2937; font-size: 16px;">${hospital.name}</h3>
+            <div style="margin-bottom: 8px;">
+              <div style="color: #22c55e; font-weight: bold; font-size: 14px;">✅ Available</div>
+              <div style="color: #6b7280; font-size: 13px;">
+                ${hospital.availableBeds || 'N/A'} beds available
+              </div>
+              ${hospital.waitTime ? `<div style="color: #6b7280; font-size: 13px;">Wait time: ${hospital.waitTime} min</div>` : ''}
+            </div>
+            <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
+              <span style="background: #22c55e; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">HOSPITAL</span>
+              <span style="background: #059669; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">OPEN</span>
+            </div>
+          </div>
+        `
+      });
+
+      marker.addListener('click', () => {
+        // Close all other info windows
+        markersRef.current.forEach(m => {
+          if (m.infoWindow) m.infoWindow.close();
+        });
+        
+        infoWindow.open(map, marker);
+      });
+
+      marker.infoWindow = infoWindow;
+      markersRef.current.push(marker);
+    });
   };
 
   // Get user's current location
