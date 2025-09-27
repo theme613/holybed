@@ -259,7 +259,8 @@ export default function Home() {
   const quickActions = [
     { name: 'Emergency Assistance', icon: 'fas fa-ambulance' },
     { name: 'Book Appointment', icon: 'fas fa-calendar-check' },
-    { name: 'Get Directions', icon: 'fas fa-directions' }
+    { name: 'Get Directions', icon: 'fas fa-directions' },
+    { name: 'Analytics Dashboard', icon: 'fas fa-chart-bar', action: () => router.push('/analytics') }
   ];  // Calculate distance between two coordinates (Haversine formula)
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371; // Earth's radius in km
@@ -1983,7 +1984,12 @@ export default function Home() {
                 
                 <div className="department-list">
                   {quickActions.map((action, index) => (
-                    <div key={index} className="department-item">
+                    <div 
+                      key={index} 
+                      className="department-item"
+                      onClick={action.action}
+                      style={{ cursor: action.action ? 'pointer' : 'default' }}
+                    >
                       <i className={action.icon} style={{color: 'var(--accent)'}}></i>
                       <div className="department-info">
                         <h4>{action.name}</h4>

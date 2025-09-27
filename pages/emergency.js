@@ -36,9 +36,9 @@ const fetchNearbyHospitals = async (userLocation) => {
 
       const request = {
         location: new window.google.maps.LatLng(userLocation.lat, userLocation.lng),
-        radius: 15000, // 15km
+        radius: 20000, // Increased to 20km for better coverage
         type: 'hospital',
-        fields: ['place_id', 'name', 'geometry', 'formatted_address', 'vicinity', 'rating', 'user_ratings_total', 'business_status', 'opening_hours']
+        fields: ['place_id', 'name', 'geometry', 'formatted_address', 'vicinity', 'rating', 'user_ratings_total', 'business_status', 'opening_hours', 'types', 'international_phone_number']
       };
 
       // Note: Google Places API has a limit of 20 results per request
@@ -100,21 +100,24 @@ const fetchNearbyHospitals = async (userLocation) => {
                 console.log(`🏢 ${place.name} business status:`, place.business_status || 'OPERATIONAL');
                 console.log(`📏 ${place.name} distance:`, distance.toFixed(1) + 'km');
 
-                // Only include hospitals that are both operational AND currently open
-                let shouldInclude = isOperational && isOpen;
+                // For emergency situations, include operational hospitals even if closed
+                // (Emergency departments often operate 24/7 even when main hospital is "closed")
+                let shouldInclude = isOperational;
                 let exclusionReason = '';
 
                 if (!isOperational) {
                   exclusionReason = 'not operational';
-                  shouldInclude = false;
-                } else if (!isOpen) {
-                  exclusionReason = 'currently closed';
                   shouldInclude = false;
                 }
 
                 if (!shouldInclude) {
                   console.log(`❌ Excluding ${place.name} - ${exclusionReason}`);
                   return null;
+                }
+
+                // Note if hospital appears closed but include it anyway for emergency
+                if (!isOpen) {
+                  console.log(`⚠️ Including ${place.name} despite appearing closed (emergency departments may still be open)`);
                 }
 
                 // Get the best available address
@@ -249,11 +252,54 @@ export default function EmergencyPage() {
       const hospitalData = await fetchNearbyHospitals(location);
       const rankedHospitals = rankHospitals(hospitalData, location);
       setHospitals(rankedHospitals);
+      
+      // Save user interaction to database
+      await saveUserInteraction(location, rankedHospitals);
+      
       setLoading(false);
     } catch (error) {
       console.error('Error searching hospitals:', error);
       setLocationError('Failed to find nearby hospitals.');
       setLoading(false);
+    }
+  };
+
+  // Save user interaction to MySQL database
+  const saveUserInteraction = async (userLocation, hospitalRecommendations) => {
+    try {
+      const interactionData = {
+        symptoms: symptoms || 'Emergency hospital search',
+        mode: 'emergency',
+        uploadedFiles: [],
+        userLocation: userLocation,
+        analysisResult: {
+          category: 'Emergency',
+          severity: 'emergency',
+          recommendedDepartment: 'Emergency Department',
+          recommendedAction: 'Seek immediate medical attention at the nearest hospital',
+          urgencyExplanation: 'Emergency hospital search initiated',
+          estimatedWaitTime: 'Varies by hospital',
+          confidenceScore: 1.0
+        },
+        hospitalRecommendations: hospitalRecommendations
+      };
+
+      const response = await fetch('/api/save-interaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(interactionData)
+      });
+
+      if (response.ok) {
+        console.log('✅ User interaction saved to database');
+      } else {
+        console.log('⚠️ Failed to save interaction to database');
+      }
+    } catch (error) {
+      console.error('❌ Error saving interaction:', error);
+      // Don't block the user experience if database save fails
     }
   };
 
@@ -385,12 +431,12 @@ export default function EmergencyPage() {
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
           <div><strong>Distance:</strong> ${hospital.distance} km</div>
-          <div><strong>Status:</strong> ${hospital.isOpen ? 'Open' : 'Closed'}</div>
+          <div><strong>Status:</strong> ${hospital.isOpen ? 'Open' : 'Emergency Available'}</div>
         </div>
         <div style="margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap;">
           <span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">HOSPITAL</span>
           ${hospital.businessStatus === 'OPERATIONAL' ? '<span style="background: #059669; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">OPERATIONAL</span>' : ''}
-          ${hospital.isOpen ? '<span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">OPEN</span>' : '<span style="background: #dc2626; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">CLOSED</span>'}
+          ${hospital.isOpen ? '<span style="background: #22c55e; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">OPEN</span>' : '<span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">EMERGENCY ONLY</span>'}
         </div>
         <div style="margin-top: 8px;">
           <button onclick="window.navigateToHospital('${hospital.name}')" style="background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
@@ -477,7 +523,7 @@ export default function EmergencyPage() {
     <>
       <Head>
         <title>Emergency Hospital Finder - HolyBed</title>
-        <script async src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBtdPEJoBPdXbumkdrLWO4nmgT63JmP9Kg'}&libraries=places,marker,geometry&v=weekly&callback=initMap`}></script>
+        <script async src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places,geometry&v=weekly&callback=initMap`}></script>
         <script dangerouslySetInnerHTML={{
           __html: `
             window.initMap = function() {
@@ -657,7 +703,7 @@ export default function EmergencyPage() {
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontWeight: 600, color: '#dc2626' }}>{hospital.distance} km</div>
                           <div style={{ fontSize: 12, color: '#6b7280' }}>
-                            {hospital.isOpen ? '✅ Open' : '❌ Closed'}
+                            {hospital.isOpen ? '✅ Open' : '🏥 Emergency Available'}
                           </div>
                         </div>
                       </div>
