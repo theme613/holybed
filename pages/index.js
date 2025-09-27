@@ -259,11 +259,19 @@ export default function Home() {
             <h2>What symptoms are you experiencing?</h2>
             <p>{mode === 'emergency' ? 'URGENT: Describe your emergency symptoms for immediate medical attention' : 'Describe how you\'re feeling and we\'ll help you find the right hospital with available capacity'}</p>
             
-            <div className="search-box">
+            <div className="search-box" style={{
+              background: '#fff',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '900px',
+              margin: '0 auto',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+              border: '1px solid #e9ecef'
+            }}>
               <div className="input-with-button-container" style={{
                 display: 'flex',
-                gap: '15px',
-                marginBottom: '20px',
+                gap: '16px',
+                marginBottom: '24px',
                 alignItems: 'flex-start'
               }}>
                 <textarea 
@@ -275,22 +283,27 @@ export default function Home() {
                   style={{
                     flex: '1',
                     minHeight: '120px',
-                    padding: '15px',
-                    border: '2px solid #e0e0e0',
+                    padding: '16px',
+                    border: '2px solid #e9ecef',
                     borderRadius: '12px',
                     fontSize: '16px',
                     resize: 'vertical',
                     fontFamily: 'inherit',
-                    lineHeight: '1.5'
+                    lineHeight: '1.5',
+                    outline: 'none',
+                    transition: 'border-color 0.2s ease',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)'
                   }}
+                  onFocus={(e) => e.target.style.borderColor = mode === 'emergency' ? '#ff4444' : '#007bff'}
+                  onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
                 />
                 <button id="search-btn" onClick={handleFindHelp} disabled={isAnalyzing} style={{
-                  minWidth: '100px',
+                  minWidth: '120px',
                   height: '56px',
-                  padding: '12px 16px',
+                  padding: '12px 20px',
                   fontSize: '14px',
                   fontWeight: '600',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
                   border: 'none',
                   cursor: isAnalyzing ? 'not-allowed' : 'pointer',
                   background: mode === 'emergency' ? '#ff4444' : '#007bff',
@@ -300,9 +313,11 @@ export default function Home() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px',
+                  gap: '8px',
                   alignSelf: 'flex-start',
-                  marginTop: '15px'
+                  marginTop: '15px',
+                  boxShadow: '0 4px 12px rgba(0, 123, 255, 0.3)',
+                  transform: isAnalyzing ? 'none' : 'translateY(0)',
                 }}>
                   <i className={`fas ${isAnalyzing ? 'fa-spinner fa-spin' : 'fa-search'}`} style={{fontSize: '14px'}}></i> 
                   <span>{isAnalyzing ? 'Analyzing...' : 'Find Help'}</span>
@@ -313,22 +328,24 @@ export default function Home() {
                 display: 'flex',
                 flexWrap: 'wrap',
                 justifyContent: 'center',
-                gap: '10px',
-                marginBottom: '25px',
-                padding: '0 20px'
+                gap: '12px',
+                marginBottom: '28px',
+                padding: '20px 0 0 0'
               }}>
                 {symptomTags.map((tag) => (
                   <button key={tag} className="symptom-tag" onClick={() => handleTagClick(tag)} style={{
-                    padding: '10px 18px',
+                    padding: '12px 20px',
                     backgroundColor: '#f8fafc',
                     border: '1px solid #e2e8f0',
-                    borderRadius: '24px',
+                    borderRadius: '28px',
                     fontSize: '14px',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     color: '#475569',
                     fontWeight: '500',
-                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.06)',
+                    minWidth: '100px',
+                    textAlign: 'center'
                   }}>
                     {tag}
                   </button>
@@ -339,13 +356,15 @@ export default function Home() {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '15px'
+                gap: '16px',
+                borderTop: '1px solid #e9ecef',
+                paddingTop: '24px'
               }}>
                 <label htmlFor="pdf-upload" style={{
                   display: 'block',
                   width: '100%',
-                  maxWidth: '600px',
-                  padding: '20px 24px',
+                  maxWidth: '700px',
+                  padding: '24px 28px',
                   background: mode === 'emergency' ? '#fef2f2' : '#f8fafc',
                   border: mode === 'emergency' ? '2px dashed #f87171' : '2px dashed #3b82f6',
                   borderRadius: '16px',
@@ -355,9 +374,11 @@ export default function Home() {
                   transition: 'all 0.3s ease',
                   textAlign: 'center',
                   fontWeight: '500',
-                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+                  position: 'relative',
+                  overflow: 'hidden'
                 }}>
-                  <i className="fas fa-file-pdf" style={{marginRight: '10px', fontSize: '18px'}}></i>
+                  <i className="fas fa-file-pdf" style={{marginRight: '12px', fontSize: '20px'}}></i>
                   {mode === 'emergency' 
                     ? 'Upload Emergency Medical Records' 
                     : 'Upload Medical Documents (Lab Results, Reports, etc.)'}
@@ -375,15 +396,16 @@ export default function Home() {
                     fontSize: '14px', 
                     color: '#16a34a',
                     background: '#f0fdf4',
-                    padding: '10px 20px',
-                    borderRadius: '30px',
+                    padding: '12px 24px',
+                    borderRadius: '32px',
                     border: '1px solid #22c55e',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '8px',
-                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+                    gap: '10px',
+                    boxShadow: '0 2px 8px rgba(34, 197, 94, 0.15)',
+                    fontWeight: '500'
                   }}>
-                    <i className="fas fa-check-circle" style={{color: '#22c55e'}}></i>
+                    <i className="fas fa-check-circle" style={{color: '#22c55e', fontSize: '16px'}}></i>
                     {pdfFile.name} uploaded successfully
                   </div>
                 )}
@@ -391,20 +413,22 @@ export default function Home() {
                 {mode === 'normal' && (
                   <div style={{
                     textAlign: 'center',
-                    maxWidth: '600px',
-                    marginTop: '12px'
+                    maxWidth: '700px',
+                    marginTop: '16px',
+                    padding: '0 20px'
                   }}>
                     <div style={{
                       fontSize: '14px',
                       color: '#64748b',
                       fontStyle: 'italic',
-                      marginBottom: '12px',
+                      marginBottom: '16px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '8px'
+                      gap: '8px',
+                      lineHeight: '1.5'
                     }}>
-                      <i className="fas fa-info-circle"></i>
+                      <i className="fas fa-info-circle" style={{color: '#3b82f6'}}></i>
                       Upload lab results, medical reports, or prescription details for more accurate analysis
                     </div>
                     <div style={{
@@ -413,13 +437,49 @@ export default function Home() {
                       display: 'flex',
                       flexWrap: 'wrap',
                       justifyContent: 'center',
-                      gap: '12px'
+                      gap: '16px',
+                      lineHeight: '1.4'
                     }}>
-                      <span>📋 Blood tests</span>
-                      <span>🩺 Doctor reports</span>
-                      <span>💊 Prescriptions</span>
-                      <span>🔬 Lab results</span>
-                      <span>📊 Medical charts</span>
+                      <span style={{
+                        background: '#f1f5f9',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>📋 Blood tests</span>
+                      <span style={{
+                        background: '#f1f5f9',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>🩺 Doctor reports</span>
+                      <span style={{
+                        background: '#f1f5f9',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>💊 Prescriptions</span>
+                      <span style={{
+                        background: '#f1f5f9',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>🔬 Lab results</span>
+                      <span style={{
+                        background: '#f1f5f9',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>📊 Medical charts</span>
                     </div>
                   </div>
                 )}
