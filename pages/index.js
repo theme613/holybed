@@ -89,7 +89,7 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Symptom-Based Hospital Finder - Kuala Lumpur</title>
+        <title>Holy bed - Kuala Lumpur</title>
         <meta name="description" content="Find the right hospital based on your symptoms" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
@@ -101,7 +101,7 @@ export default function Home() {
             <div className="header-content">
               <div className="logo">
                 <i className="fas fa-hospital"></i>
-                <h1>Symptom <span>Finder</span></h1>
+                <h1>Holy bed</h1>
               </div>
               
               <nav>
@@ -368,7 +368,7 @@ export default function Home() {
           <div className="container">
             <div className="footer-content">
               <div className="footer-column">
-                <h3>Symptom Finder</h3>
+                <h3>Holy bed</h3>
                 <ul>
                   <li><a href="#">About Us</a></li>
                   <li><a href="#">Contact</a></li>
@@ -409,7 +409,7 @@ export default function Home() {
             </div>
             
             <div className="copyright">
-              <p>&copy; 2023 Symptom-Based Hospital Finder. All rights reserved.</p>
+              <p>&copy; 2023 Holy bed. All rights reserved.</p>
             </div>
           </div>
         </footer>
