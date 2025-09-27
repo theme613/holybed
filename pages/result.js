@@ -867,7 +867,7 @@ export default function Result() {
               }}>
                 <h4 style={{marginBottom: '12px', color: '#495057'}}>Original Symptoms:</h4>
                 <p style={{margin: 0, fontStyle: 'italic', color: '#666'}}>
-                  "{searchData.symptoms}"
+                  &ldquo;{searchData.symptoms}&rdquo;
                 </p>
                 {searchData.pdfContent && (
                   <p style={{margin: '8px 0 0 0', fontSize: '12px', color: '#888'}}>
