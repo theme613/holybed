@@ -1,5 +1,5 @@
 
-# 🛌 Holy.Bed: The AI Solution for Hospital Chaos
+# 🏥 Holy.Bed: The AI Solution for Hospital Chaos
 
 ![Project Status: Hackathon Submission](https://img.shields.io/badge/Status-Hackathon%20Project-blue)
 ![Built with Next.js](https://img.shields.io/badge/Framework-Next.js-black)
